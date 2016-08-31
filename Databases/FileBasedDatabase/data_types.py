@@ -6,7 +6,7 @@ class City():
     full_name = attr.ib(validator=attr.validators.instance_of(str))
 
     def __str__(self):
-        return ' '.join([city_code, full_name])
+        return ' '.join([self.city_code, self.full_name])
 
 @attr.s
 class Airline():
@@ -14,7 +14,7 @@ class Airline():
     full_name = attr.ib(validator=attr.validators.instance_of(str))
 
     def __str__(self):
-        return ' '.join([abbreviation, full_name])
+        return ' '.join([self.abbreviation, self.full_name])
     
 @attr.s
 class Flight():
@@ -24,4 +24,5 @@ class Flight():
     price = attr.ib(validator=attr.validators.instance_of(int))
 
     def __str__(self):
-        return ' '.join([airline_code, departure_airport_code, arrival_airport_code, price])
+        
+        return ' '.join([self.airline_code, self.departure_airport_code, self.arrival_airport_code, self.price])
