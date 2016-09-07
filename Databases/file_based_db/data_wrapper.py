@@ -1,5 +1,4 @@
 import attr
-import itertools
 import utils
 
 class DataWrapper():
@@ -40,7 +39,7 @@ class DataWrapper():
         return (
             self.is_predefined(args[0], 'abbreviation', 'AIRLINES') and
             self.is_predefined(args[1], 'city_code', 'CITIES') and
-            self.is_predefined(args[2], 'city_code', 'CITIES' )
+            self.is_predefined(args[2], 'city_code', 'CITIES')
         )
 
     def is_not_duplicate(self, data_key, new_object):
@@ -51,15 +50,15 @@ class DataWrapper():
         # but there can't be a shared code/abbreviation between them
         if data_key == "CITIES":
             return not self.is_predefined(
-                data_key,
                 new_object.city_code,
-                'city_code'
+                'city_code',
+                data_key,
             )
         elif data_key == "AIRLINES":
             return not self.is_predefined(
-                data_key,
                 new_object.abbreviation,
-                'abbreviation'
+                'abbreviation',
+                data_key,
             )
         else:
             # For a Flight, it is a duplicate if there is already an object
@@ -78,19 +77,19 @@ class DataWrapper():
 
         matching_flights = []
 
-        departing_flights = filter(
+        departing_flights = list(filter(
             lambda flight_obj: flight_obj.departure_airport_code == cities[0],
             all_flights
-        )
+        ))
 
-        arriving_flights = filter(
+        arriving_flights = list(filter(
             lambda flight_obj: (
                 flight_obj.arrival_airport_code == cities[1] and
                 # Make sure that direct flights to dest. city are not included
                 flight_obj.departure_airport_code != cities[0]
             ),
             all_flights
-        )
+        ))
 
         '''
         Create a list of the intermediary cities by finding the intersection
@@ -108,14 +107,13 @@ class DataWrapper():
         intermediary_cities = list(
             set(flight_one_arrival).intersection(flight_two_departure)
         )
-        
         # Iterate through all intermediary cities
         for city in intermediary_cities:
             # Construct list of flights from departure city to an intermediary city
-            leg_one_flights = list(filter(
-                lambda flight_obj: flight_obj.arrival_airport_code == city,
-                departing_flights
-            ))
+            leg_one_flights = [
+                flight for flight in departing_flights if flight.arrival_airport_code == city
+            ]
+            
             # Next get list of flights from intermediary to destination city
             leg_two_flights = list(filter(
                 lambda flight_obj: flight_obj.departure_airport_code == city,
@@ -124,7 +122,7 @@ class DataWrapper():
 
             # Create a tuple pair consisting of the first/second leg flights
             # that share a common intermediary city
-            matching_flight_plan = tuple(leg_one_flights, leg_two_flights)
+            matching_flight_plan = (leg_one_flights, leg_two_flights)
             matching_flights.append(matching_flight_plan)
 
         return matching_flights
@@ -133,17 +131,17 @@ class DataWrapper():
     def simple_flight_search(self, cities):
         all_flights = self.data_as_dict['FLIGHTS']
         # Filter out flights that don't have the specified departure city coden 
-        departing_flights = filter(
+        departing_flights = list(filter(
             lambda flight_obj: flight_obj.departure_airport_code == cities[0],
             all_flights
-        )
+        ))
 
         # From flights_from_departure, get all flights that are arriving in
         # the inputted arrival city
-        matching_flights = filter(
+        matching_flights = list(filter(
             lambda flight_obj: flight_obj.arrival_airport_code == cities[1],
             departing_flights
-        )
+        ))
 
         return matching_flights
     
@@ -170,7 +168,6 @@ class DataWrapper():
                     self.get_full_name(_[2], 'city_code', 'CITIES'),
                     _[-1]
                 ]
-                print(full_flight_data)
                 formatted_flights.append(utils.format_flight_info(full_flight_data))
 
             # Return the list of formatted strings for each flight's info

@@ -2,11 +2,9 @@ import attr
 import data_file
 import data_types
 import data_wrapper
+import itertools
 import json
 import utils
-
-# Data is loaded from a dictionary of lists for listing and flight options
-# instead of having to read the file each time
 
 class DataController():
     data = attr.ib()
@@ -26,6 +24,7 @@ class DataController():
 
     def load_from_file(self):
 
+        # Check that the data file actually exists
         if not self.data_file.check_existence():
             print("Data file doesn't exist; aborting loading the data file")
             return
@@ -33,26 +32,28 @@ class DataController():
         # If the file hasn't been modified since the last time it was edited
         # then there isn't a reason to reload it
         if self.data_file.check_if_modified():
-            # Attempt to load 
+            # Load the data file; 
             data_from_file = self.data_file.load()
-            
             try:
                 loaded_data = json.loads(data_from_file)
-            except ValueError:
+            except ValueError: # Exit function if the file has an invalid format
                 print('Invalid JSON format; aborting loading the data file')
                 return
             
             # Clear the pre-existing list of the data type
             self.data.reset()            
 
-            # 
+            # Create the data from the loaded data
             data_as_object = data_types.DataTypeFactory.create_from_file_data(loaded_data)
+            # Check that loading of data was successful
+            if data_as_object:
+                # Replace the previous data with the loaded data
+                self.data.update_data_as_dict(data_as_object)
 
-            # Replace the previous data with the loaded data
-            self.data.update_data_as_dict(data_as_object)
-
-            # Update the last_modified_time
-            self.data_file.update_last_modified_time()
+                # Update the last_modified_time
+                self.data_file.update_last_modified_time()
+            else:
+                pass
             
 
     def list_items(self, type_to_list):
@@ -67,7 +68,8 @@ class DataController():
     def add_item(self, data_type, data_info):
 
         if data_type == 'FLIGHTS' and not self.data.flight_info_check(data_info[:-1]):
-            print('foo')
+            print('One of the codes entered has not been defined\n'+
+                  'Check your input and try again.')
             return
         
         # DataTypeFactory will handle validation of input data and return the
@@ -90,7 +92,8 @@ class DataController():
         if not (self.data.is_predefined(args[0], "city_code", "CITIES") and
                 self.data.is_predefined(args[1], "city_code", "CITIES")):
             # One of the codes is not defined; halt searching for flights
-            print("One of the codes entered is not defined")
+            print("One of the codes entered is not defined\n" +
+                  "Check your input and try again")
             return
         else:
             # The connections requested needs to be an int; check for that
@@ -124,12 +127,13 @@ class DataController():
                             # Append the products to the list of flights to print
                             flight_plans += flight_product
 
-                        # Format all flight plans
+                        # Prep flight plans for printing
                         formatted_flight_plans = list(map(
                             utils.search_print_connecting,
                             flight_plans
                         ))
 
+                        # Print all flights found
                         for _ in formatted_flight_plans:
                             print(_)
                     
@@ -140,12 +144,12 @@ class DataController():
                     if not flights_found:
                         print('No such flights found')
                     else:
-                        print('foo')
                         # Prep the flights found for printing
                         formatted_flights = list(map(
                             utils.search_print_simple,
                             flights_found
                         ))
 
+                        # Print all flights found
                         for _ in formatted_flights:
                             print(_)

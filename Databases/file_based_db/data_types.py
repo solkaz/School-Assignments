@@ -139,6 +139,7 @@ class DataTypeFactory():
         }
         
         for data_key in loaded_data:
+            
             # Get the class constructor from the key
             data_type = getClassFromKey(data_key)
 
@@ -148,5 +149,9 @@ class DataTypeFactory():
                 if data_type.validate(entry):
                     new_object = data_type(**entry)
                     created_objects[data_key].append(new_object)
+                else:
+                    print('Invalid data supplied to Add operation. Please check data\n'+
+                          'and try again')
+                    return []
 
         return created_objects

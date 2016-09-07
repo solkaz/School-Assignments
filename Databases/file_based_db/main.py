@@ -5,6 +5,8 @@ def handle_input_command(controller, command, args):
     
     # Determine which command was requested and (attempt to) execute it
     if command == utils.ADD:
+        # Reload the file if there have been changes
+        controller.load_from_file()
         data_type = utils.convert_char_to_data_key(args[0])
         if data_type != "":
             data_info = args[1:]
@@ -13,6 +15,8 @@ def handle_input_command(controller, command, args):
         else:
             pass # Do nothing if an invalid type was supplied
     elif command == utils.LIST:
+        # Reload the file if there have been changes
+        controller.load_from_file()
         # There should be only one argument for list, but if there are multiple,
         # We only read the first one (No errors thrown, however)
         data_type = utils.convert_char_to_data_key(args[0])
@@ -22,8 +26,10 @@ def handle_input_command(controller, command, args):
             pass  # Do nothing if an invalid type was supplied
         
     elif command == utils.FLIGHT:
+        # Reload the file if there have been changes
+        controller.load_from_file()
         controller.search_for_flight(args[0:])
-        pass
+
     elif command == utils.QUIT:
         return False  # Return False to end program execution
     
