@@ -49,23 +49,6 @@ class Flight():
 
     def __str__(self):
 
-        # Get the airline's full-name from the airline code
-        airline_full_name = utils.get_full_name(
-            'abbreviation',
-            self.airline_code,
-            'AIRLINES'
-        )
-        departure_city_full_name = utils.get_full_name(
-            'city_code',
-            self.departure_airport_code,
-            'CITIES'
-        )
-        arrival_city_full_name = utils.get_full_name(
-            'city_code',
-            self.arrival_airport_code,
-            'CITIES'
-        )
-
         # Format the string with the full information and return it
         return ' '.join(
             self.airline_code,
@@ -91,11 +74,11 @@ class DataTypeFactory():
         # Validate the data
         if data_type.validate(args):
             new_object = data_type(args)
+            return new_object
         else:
             print('Invalid data supplied to Add operation. Please check data\n'+
                   'and try again')
             return None
-        pass
 
     @staticmethod
     def create_from_file_data(loaded_data):

@@ -33,6 +33,7 @@ def is_valid_int(string):
         return True
     # 
     except ValueError:
+        print('Invalid integer type supplied')
         return False
 
 def print_help():

@@ -2,7 +2,7 @@ import data_abstract
 import utils
 
 def handle_input_command(controller, command, args):
-
+    
     # Determine which command was requested and (attempt to) execute it
     if command == utils.ADD:
         data_type = utils.convert_char_to_data_key(args[0])
@@ -14,17 +14,17 @@ def handle_input_command(controller, command, args):
     elif command == utils.LIST:
         # There should be only one argument for list, but if there are multiple,
         # We only read the first one (No errors thrown, however)
-        data_type = utils.convert_char_to_data_key(args[0])
+        data_type = utils.convert_char_to_data_key(args[1])
         if data_type != "":
             controller.list_items(data_type)
         else:
             pass  # Do nothing if an invalid type was supplied
         
     elif command == utils.FLIGHT:
-        #controller.search_for_flight()
+        controller.search_for_flight(args[1:])
         pass
     elif command == utils.QUIT:
-        return False
+        return False  # Return False to end program execution
     
     elif command == utils.HELP:
         utils.print_help()
