@@ -1,0 +1,10 @@
+Name: Jeffrey Held
+Date: 9/7/16
+Platform: Xubuntu 16.04
+Special steps:
+	* install pip, python3 and virtualenv through your package manager
+	* run pip install -r requirements.txt
+	* 
+Bugs: None
+Summary of approach: 
+	Main method handles input to determine which command to execute, which is then passed to a DataController which controls how data is handled. It wraps around a DataWrapper, which is essentially a dictionary of all the data objects, and also a DataFile, which handles I/O for the data file. It will exit only if the user chooses to do so, and will alert them on errors. Utils.py contains helper functions used by other functions, and data_types.py contains the class objects for the data types. If the user needs help, they can type 'h' to get a basic help menu
