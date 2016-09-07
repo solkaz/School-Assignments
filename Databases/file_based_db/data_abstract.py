@@ -1,7 +1,8 @@
-import attrs
+import attr
 import data_file
 import data_types
 import data_wrapper
+import json
 import utils
 
 # Data is loaded from a dictionary of lists for listing and flight options
@@ -64,10 +65,15 @@ class DataController():
             print('No ' + type_to_list.lower() + ' were found.')
 
     def add_item(self, data_type, data_info):
+
+        if data_type == 'FLIGHTS' and not self.data.flight_info_check(data_info[:-1]):
+            print('foo')
+            return
+        
         # DataTypeFactory will handle validation of input data and return the
         # relevant object from the arguments
         # If invalid args were supplied, Nonetype will be returned
-        new_object = data_types.DataTypeFactory(data_type, data_info)
+        new_object = data_types.DataTypeFactory.create_from_entry(data_type, data_info)
 
         if new_object:
             # Check that there isn't a duplicate object in the data
@@ -81,9 +87,10 @@ class DataController():
     def search_for_flight(self, args):
         
         # Both city codes need to have been predefined
-        if not self.data.is_predefined(args[0]) or not self.data.is_predefined(args[1]):
+        if not (self.data.is_predefined(args[0], "city_code", "CITIES") and
+                self.data.is_predefined(args[1], "city_code", "CITIES")):
             # One of the codes is not defined; halt searching for flights
-            print("One of the city codes entered is not defined")
+            print("One of the codes entered is not defined")
             return
         else:
             # The connections requested needs to be an int; check for that
@@ -96,14 +103,49 @@ class DataController():
                 connection_requested = bool(int(args[-1]))
                 
                 # Construct a tuple pair consisting of the two cities
-                cities = tuple(args[:1])
+                cities = tuple(args[:-1])
 
-                flights_found = None
                 # Use a different search method if a connection wsa requested
                 if connection_requested:
                     flights_found = self.data.connecting_flight_search(cities)
+
+                    # Check that there were flights found
+                    if not flights_found:
+                        print('No such flights found')
+                    else:
+                        flight_plans = []
+                        # Prep the flights found for printing
+                        for connected_flights in flights_found:
+                            # Connected flights should be a tuple consisting of
+                            # flights that share an intermediary city. This will
+                            # create all possible flight plans
+                            flight_product = list(itertools.product(*connected_flights))
+
+                            # Append the products to the list of flights to print
+                            flight_plans += flight_product
+
+                        # Format all flight plans
+                        formatted_flight_plans = list(map(
+                            utils.search_print_connecting,
+                            flight_plans
+                        ))
+
+                        for _ in formatted_flight_plans:
+                            print(_)
+                    
                 else:
                     flights_found = self.data.simple_flight_search(cities)
 
-                
-                
+                    # Check that there were flights found
+                    if not flights_found:
+                        print('No such flights found')
+                    else:
+                        print('foo')
+                        # Prep the flights found for printing
+                        formatted_flights = list(map(
+                            utils.search_print_simple,
+                            flights_found
+                        ))
+
+                        for _ in formatted_flights:
+                            print(_)

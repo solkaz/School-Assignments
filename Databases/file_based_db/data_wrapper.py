@@ -1,4 +1,6 @@
 import attr
+import itertools
+import utils
 
 class DataWrapper():
     data_as_dict = {
@@ -19,18 +21,27 @@ class DataWrapper():
     def add_item(self, data_type, new_object):
         self.data_as_dict[data_type].append(new_object)
 
-    def get_full_name(self, code, field_name, data_type_key):
-        matched_object = next(filter(
-            lambda obj: getattr(obj, field_name) == code,
-            self.data_as_dict[data_type_key]
-        ));
-        return getattr(matched_object, 'full_name')
+    def get_full_name(self, code, field_name, data_key):
+        data_objects = self.data_as_dict[data_key]
+        
+        for obj in data_objects:
+            if getattr(obj, field_name) == code:
+                return getattr(obj, 'full_name')
 
-    def is_predefined(self, data_key, code, member_name):
+    def is_predefined(self, code, field_name, data_key):
         # Check that either the city code or airline abbreviation s predefined
         type_collection = self.data_as_dict[data_key]
-        codes = [ getattr(obj, member_name) for obj in type_collection ]
+        codes = [ getattr(obj, field_name) for obj in type_collection ]
         return code in codes
+
+    def flight_info_check(self, args):
+        # Check that the airline abbreviation and both city codes are defined
+        # as they're necessary for listing a flight
+        return (
+            self.is_predefined(args[0], 'abbreviation', 'AIRLINES') and
+            self.is_predefined(args[1], 'city_code', 'CITIES') and
+            self.is_predefined(args[2], 'city_code', 'CITIES' )
+        )
 
     def is_not_duplicate(self, data_key, new_object):
 
@@ -52,8 +63,8 @@ class DataWrapper():
             )
         else:
             # For a Flight, it is a duplicate if there is already an object
-            # with the exact same data. 
-            return new_object in self.data_as_dict[data_key]
+            # with the exact same data.
+            return not new_object in self.data_as_dict[data_key]
         
     def clear(self, data_key):
         self.data_as_dict[data_key].clear()
@@ -65,11 +76,13 @@ class DataWrapper():
     def connecting_flight_search(self, cities):
         all_flights = self.data_as_dict['FLIGHTS']
 
+        matching_flights = []
+
         departing_flights = filter(
             lambda flight_obj: flight_obj.departure_airport_code == cities[0],
             all_flights
         )
-        
+
         arriving_flights = filter(
             lambda flight_obj: (
                 flight_obj.arrival_airport_code == cities[1] and
@@ -80,12 +93,22 @@ class DataWrapper():
         )
 
         '''
-        The list of common elements 
-        Extract the list of common elements between 
+        Create a list of the intermediary cities by finding the intersection
+        between the sets of the first flight's destination city and the second
+        flight's departure city. 
         '''
+        flight_one_arrival = [
+            flight.arrival_airport_code for flight in departing_flights
+        ]
+
+        flight_two_departure = [
+            flight.departure_airport_code for flight in arriving_flights
+        ]
+        
         intermediary_cities = list(
-            set(departing_flights).intersection(arriving_flights)
+            set(flight_one_arrival).intersection(flight_two_departure)
         )
+        
         # Iterate through all intermediary cities
         for city in intermediary_cities:
             # Construct list of flights from departure city to an intermediary city
@@ -99,7 +122,12 @@ class DataWrapper():
                 arriving_flights
             ))
 
-            # Group 
+            # Create a tuple pair consisting of the first/second leg flights
+            # that share a common intermediary city
+            matching_flight_plan = tuple(leg_one_flights, leg_two_flights)
+            matching_flights.append(matching_flight_plan)
+
+        return matching_flights
     
             
     def simple_flight_search(self, cities):
@@ -116,6 +144,8 @@ class DataWrapper():
             lambda flight_obj: flight_obj.arrival_airport_code == cities[1],
             departing_flights
         )
+
+        return matching_flights
     
     def prep_for_list(self, data_type):
         if data_type != 'FLIGHTS':
@@ -124,25 +154,27 @@ class DataWrapper():
             return [ str(obj) for obj in self.data_as_dict[data_type] ]
                         
         else:
+            all_flights = self.data_as_dict[data_type]
+            formatted_flights = []
             # Flight needs to the full names of the airlines, which it can't
             # The attributes of the flights are passed back as a conjoined string
             # (separated by spaces), which are then split to create a list of the data
             flight_data = [
-                (str(flight)).split() for flight in self.data_as_dict[data_type]
+                (str(flight)).split() for flight in all_flights
             ]
-
-            # We need the full names for the airline and the cities
-            full_flight_data = [
-                self.get_full_name(flight_data[0], 'abbreviation', 'AIRLINES'),
-                self.get_full_name(flight_data[1], 'city_code', 'CITIES'),
-                self.get_full_name(flight_data[2], 'city_code', 'CITIES'),
-                flight_data[-1]
-            ]
+            for _ in flight_data:
+                # We need the full names for the airline and the cities
+                full_flight_data = [
+                    self.get_full_name(_[0], 'abbreviation', 'AIRLINES'),
+                    self.get_full_name(_[1], 'city_code', 'CITIES'),
+                    self.get_full_name(_[2], 'city_code', 'CITIES'),
+                    _[-1]
+                ]
+                print(full_flight_data)
+                formatted_flights.append(utils.format_flight_info(full_flight_data))
 
             # Return the list of formatted strings for each flight's info
-            return [
-                utils.format_flight_info(flight_info) for flight_info in full_flight_data
-            ]
+            return formatted_flights
         
     def prep_for_saving(self):
         # Create a copy of DATA_AS_DICT, except the keys in DATA_AS_DICT map to lists of
@@ -153,7 +185,7 @@ class DataWrapper():
         # Apply attrs.asdict to each section in DATA_AS_DICT to get a dict of each object
         for data_type in self.keys():
             data_to_save[data_type] = [
-                attrs.asdict(data_object) for data_object in self.data_as_dict[data_type]
+                attr.asdict(data_object) for data_object in self.data_as_dict[data_type]
             ]
 
         return data_to_save

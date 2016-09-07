@@ -1,3 +1,4 @@
+import json
 import os
 
 class DataFile():
@@ -32,7 +33,7 @@ class DataFile():
     def save(self, save_data):
         # Save data to the data file
         with open(self.DATA_FILE_LOCATION, 'w', encoding='utf-8') as data_file:
-            json.dump(data_to_save, data_file, ensure_ascii=False)
+            json.dump(save_data, data_file, ensure_ascii=False)
             
     def load(self):
         with open(self.DATA_FILE_LOCATION) as data_file:

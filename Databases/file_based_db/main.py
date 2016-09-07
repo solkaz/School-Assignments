@@ -9,19 +9,20 @@ def handle_input_command(controller, command, args):
         if data_type != "":
             data_info = args[1:]
             controller.add_item(data_type, data_info)
+            controller.save_to_file()
         else:
             pass # Do nothing if an invalid type was supplied
     elif command == utils.LIST:
         # There should be only one argument for list, but if there are multiple,
         # We only read the first one (No errors thrown, however)
-        data_type = utils.convert_char_to_data_key(args[1])
+        data_type = utils.convert_char_to_data_key(args[0])
         if data_type != "":
             controller.list_items(data_type)
         else:
             pass  # Do nothing if an invalid type was supplied
         
     elif command == utils.FLIGHT:
-        controller.search_for_flight(args[1:])
+        controller.search_for_flight(args[0:])
         pass
     elif command == utils.QUIT:
         return False  # Return False to end program execution
@@ -46,7 +47,7 @@ def main():
 
     while exit_flag:
         # Get the input from the user
-        user_input = input()
+        user_input = input().strip().split()
 
         command, args = (user_input[0], user_input[1:])
         exit_flag = handle_input_command(controller, command, args)
