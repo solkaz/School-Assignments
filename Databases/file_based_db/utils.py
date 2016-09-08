@@ -12,16 +12,7 @@ CITY = 'c'
 AIRLINE = 'a'
 # FLIGHT = 'f' # Defined above, but it is an option for Add/List as well
 
-def ask_to_continue(question):
-    # Ask the question and collect input from user
-    response = input(question + ', continue [y/n]? ')
-    has_valid_response = response in ['y', 'n']
-    while not has_valid_response:
-        response = input('Please answer with "y" or "n"')
-        has_valid_response = response in ['y', 'n']
-
-    return response == 'y'
-
+# Check if a string has digits with a regex
 _digits = re.compile('\d')
 def has_digits(string):
     return bool(_digits.search(string))
@@ -31,12 +22,13 @@ def is_valid_int(string):
     try:
         i = int(string)
         return True
-    # 
+    # ValueError is raised if str cannot be converted to a valid int
     except ValueError:
         print('Invalid integer type supplied')
         return False
 
 def print_help():
+    # Print a basic help menu
     print('commands\n' +
           '--------\n' +
           'a = add a new (c)ity, (a)irline, or (f)light\n'  +
@@ -82,13 +74,16 @@ def search_print_connecting(flight_pair):
         search_print_simple,
         flight_pair
     ))
-
+    # Get the total price of the flight plan
     total_price = str(flight_one.price + flight_two.price)
 
+    # Return the formatted flight info to be printed
     return "{0}; {1}, for a total cost of ${2}".format(
         *flight_infos,
         total_price
     )
 
+# Create a dict with the given fields and args
+# Useful in creating a data object from the keywords
 def map_args_to_fields(fields, args):
     return dict(zip(fields, args))

@@ -32,8 +32,11 @@ class DataController():
         # If the file hasn't been modified since the last time it was edited
         # then there isn't a reason to reload it
         if self.data_file.check_if_modified():
-            # Load the data file; 
+            # Load the contents of data file
             data_from_file = self.data_file.load()
+
+            # Attempt to parse the JSON contents; it will raise a ValueError
+            # if it has an invalid format
             try:
                 loaded_data = json.loads(data_from_file)
             except ValueError: # Exit function if the file has an invalid format
@@ -43,30 +46,35 @@ class DataController():
             # Clear the pre-existing list of the data type
             self.data.reset()            
 
-            # Create the data from the loaded data
-            data_as_object = data_types.DataTypeFactory.create_from_file_data(loaded_data)
-            # Check that loading of data was successful
+            # Create the data type objects from the loaded data
+            data_as_object = data_types.create_from_file_data(loaded_data)
+            # Check that the objects were successfully
             if data_as_object:
-                # Replace the previous data with the loaded data
+                # Replace the previous data set with the new data
                 self.data.update_data_as_dict(data_as_object)
 
-                # Update the last_modified_time
+                # Update last_modified_time
                 self.data_file.update_last_modified_time()
-            else:
+            else: # Do nothing if there was an error
                 pass
             
 
     def list_items(self, type_to_list):
-        self.load_from_file()
+        # Collect the list of items to print from the DataWrapper
         list_of_items = self.data.prep_for_list(type_to_list)
+        
+        # If the list is not empty, print the contents
         if list_of_items:
             for item in list_of_items:
                 print(item)
+        # Alert the user that there were no items found
         else:
             print('No ' + type_to_list.lower() + ' were found.')
 
     def add_item(self, data_type, data_info):
 
+        # Flight relies on pre-existing data (city and airline codes); check that
+        # they have been predefined
         if data_type == 'FLIGHTS' and not self.data.flight_info_check(data_info[:-1]):
             print('One of the codes entered has not been defined\n'+
                   'Check your input and try again.')
@@ -75,7 +83,7 @@ class DataController():
         # DataTypeFactory will handle validation of input data and return the
         # relevant object from the arguments
         # If invalid args were supplied, Nonetype will be returned
-        new_object = data_types.DataTypeFactory.create_from_entry(data_type, data_info)
+        new_object = data_types.create_from_entry(data_type, data_info)
 
         if new_object:
             # Check that there isn't a duplicate object in the data

@@ -8,6 +8,8 @@ class DataFile():
     last_modified_time = -1
 
     def check_existence(self):
+        # Attempt to open the data file; if it doesn't exist, then it an
+        # OSError will be raised
         try:
             with open(self.DATA_FILE_LOCATION) as data_file:
                 pass
@@ -39,4 +41,5 @@ class DataFile():
         with open(self.DATA_FILE_LOCATION) as data_file:
             # Attempt to load data_file;
             read_data = data_file.read()
+        # Return the contents of the data file
         return read_data
