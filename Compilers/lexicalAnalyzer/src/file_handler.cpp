@@ -1,23 +1,35 @@
 #include "file_handler.hpp"
-#include "token_constants.hpp"
+
+#include <iostream>
+#include <fstream>
 
 FileHandler::FileHandler() {
-    this->file_location_ = "";
+    // Placeholder; is replaced with GetFileLocation
+    file_location_ = "";
 }
 
 void FileHandler::GetFileLocation() {
     std::cout << "Enter the location of the source code file: ";
-    std::cin >> this->file_location_;
+    std::cin >> file_location_;
 }
 
 std::string FileHandler::ExtractSourceCode() {
-    std::ifstream source_code_file(this->file_location_, std::fstream::in);
+    std::ifstream source_code_file(file_location_, std::fstream::in);
 
-    std::string extracted_source_code ((std::istreambuf_iterator<char>(source_code_file)),
-					 (std::istreambuf_iterator<char>()));
-    std::cout << extracted_source_code << std::endl;
-    std::cout << VAR << std::endl;
-    return extracted_source_code;
+    // Check that the file exists
+    if (source_code_file) {
+	// Get the full contents of the source code file and place it in a string
+	std::string extracted_source_code (
+	    (std::istreambuf_iterator<char>(source_code_file)),
+	    (std::istreambuf_iterator<char>())
+	    );
+	// Return the source code's contents as a string
+	return extracted_source_code;
+    } else {
+	std::cout << "File doesn't exist; exiting" << std::endl;
+	return "";
+    }
+    
 }
 
 
