@@ -1,65 +1,163 @@
-import data_abstract
+import attr
+import data_file
+import data_types
+import data_wrapper
+import itertools
+import json
 import utils
 
-def handle_input_command(controller, command, args):
-    
-    # Determine which command was requested and (attempt to) execute it
-    if command == utils.ADD:
-        # Reload the file if there have been changes
-        controller.load_from_file()
-        data_type = utils.convert_char_to_data_key(args[0])
-        if data_type != "":
-            data_info = args[1:]
-            controller.add_item(data_type, data_info)
-            controller.save_to_file()
+class DataController():
+    data = attr.ib()
+    data_file = attr.ib()
+
+    def __init__(self):
+        # Create new DataWrapper & DataFile instances when
+        # DataController is initialized
+        self.data = data_wrapper.DataWrapper()
+        self.data_file = data_file.DataFile()
+
+    def save_to_file(self):
+        # Format the data to be suitable for saving to the data file
+        save_data = self.data.prep_for_saving()
+        # Dump the data into the data file
+        self.data_file.save(save_data)
+
+    def load_from_file(self):
+
+        # Check that the data file actually exists
+        if not self.data_file.check_existence():
+            print("Data file doesn't exist; aborting loading the data file")
+            return
+
+        # If the file hasn't been modified since the last time it was edited
+        # then there isn't a reason to reload it
+        if self.data_file.check_if_modified():
+            # Load the contents of data file
+            data_from_file = self.data_file.load()
+
+            # Attempt to parse the JSON contents; it will raise a ValueError
+            # if it has an invalid format
+            try:
+                loaded_data = json.loads(data_from_file)
+            except ValueError: # Exit function if the file has an invalid format
+                print('Invalid JSON format; aborting loading the data file')
+                return
+            
+            # Clear the pre-existing list of the data type
+            self.data.reset()            
+
+            # Create the data type objects from the loaded data
+            data_as_object = data_types.create_from_file_data(loaded_data)
+            # Check that the objects were successfully
+            if data_as_object:
+                # Replace the previous data set with the new data
+                self.data.update_data_as_dict(data_as_object)
+
+                # Update last_modified_time
+                self.data_file.update_last_modified_time()
+            else: # Do nothing if there was an error
+                pass
+            
+
+    def list_items(self, type_to_list):
+        # Collect the list of items to print from the DataWrapper
+        list_of_items = self.data.prep_for_list(type_to_list)
+        
+        # If the list is not empty, print the contents
+        if list_of_items:
+            for item in list_of_items:
+                print(item)
+        # Alert the user that there were no items found
         else:
-            pass # Do nothing if an invalid type was supplied
-    elif command == utils.LIST:
-        # Reload the file if there have been changes
-        controller.load_from_file()
-        # There should be only one argument for list, but if there are multiple,
-        # We only read the first one (No errors thrown, however)
-        data_type = utils.convert_char_to_data_key(args[0])
-        if data_type != "":
-            controller.list_items(data_type)
+            print('No ' + type_to_list.lower() + ' were found.')
+
+    def add_item(self, data_type, data_info):
+
+        # Flight relies on pre-existing data (city and airline codes); check that
+        # they have been predefined
+        if data_type == 'FLIGHTS' and not self.data.flight_info_check(data_info[:-1]):
+            print('One of the codes entered has not been defined\n'+
+                  'Check your input and try again.')
+            return
+        
+        # DataTypeFactory will handle validation of input data and return the
+        # relevant object from the arguments
+        # If invalid args were supplied, Nonetype will be returned
+        new_object = data_types.create_from_entry(data_type, data_info)
+
+        if new_object:
+            # Check that there isn't a duplicate object in the data
+            if self.data.is_not_duplicate(data_type, new_object):
+                self.data.add_item(data_type, new_object)
+            else:
+                print("Attempt to add a duplicate record")
+        else: # Do nothing if invalid data was supplied
+            pass
+
+    def search_for_flight(self, args):
+        
+        # Both city codes need to have been predefined
+        if not (self.data.is_predefined(args[0], "city_code", "CITIES") and
+                self.data.is_predefined(args[1], "city_code", "CITIES")):
+            # One of the codes is not defined; halt searching for flights
+            print("One of the codes entered is not defined\n" +
+                  "Check your input and try again")
+            return
         else:
-            pass  # Do nothing if an invalid type was supplied
-        
-    elif command == utils.FLIGHT:
-        # Reload the file if there have been changes
-        controller.load_from_file()
-        controller.search_for_flight(args[0:])
+            # The connections requested needs to be an int; check for that
+            if not utils.is_valid_int(args[-1]):
+                print("Number of connections needs to be an int")
+                return
+            else:
+                # Convert the truth value of last arg ("Is a connection allowed?")
+                # to bool
+                connection_requested = bool(int(args[-1]))
+                
+                # Construct a tuple pair consisting of the two cities
+                cities = tuple(args[:-1])
 
-    elif command == utils.QUIT:
-        return False  # Return False to end program execution
-    
-    elif command == utils.HELP:
-        utils.print_help()
-        
-    else:
-        # Invalid command entered; alert user
-        print("Invalid command entered. Type 'h' for assistance")
-        
-    return True
+                # Use a different search method if a connection wsa requested
+                if connection_requested:
+                    flights_found = self.data.connecting_flight_search(cities)
 
-def main():
-    print("Loading data file...")
-    controller = data_abstract.DataController()
+                    # Check that there were flights found
+                    if not flights_found:
+                        print('No such flights found')
+                    else:
+                        flight_plans = []
+                        # Prep the flights found for printing
+                        for connected_flights in flights_found:
+                            # Connected flights should be a tuple consisting of
+                            # flights that share an intermediary city. This will
+                            # create all possible flight plans
+                            flight_product = list(itertools.product(*connected_flights))
 
-    # Do an initial load of the data file
-    controller.load_from_file()
+                            # Append the products to the list of flights to print
+                            flight_plans += flight_product
 
-    exit_flag = True
+                        # Prep flight plans for printing
+                        formatted_flight_plans = list(map(
+                            utils.search_print_connecting,
+                            flight_plans
+                        ))
 
-    while exit_flag:
-        # Get the input from the user
-        user_input = input().strip().split()
+                        # Print all flights found
+                        for _ in formatted_flight_plans:
+                            print(_)
+                    
+                else:
+                    flights_found = self.data.simple_flight_search(cities)
 
-        command, args = (user_input[0], user_input[1:])
-        exit_flag = handle_input_command(controller, command, args)
-        
-    print('Ending program execution...')
-    
-if __name__ == '__main__':
-    # Load the main function
-main()
+                    # Check that there were flights found
+                    if not flights_found:
+                        print('No such flights found')
+                    else:
+                        # Prep the flights found for printing
+                        formatted_flights = list(map(
+                            utils.search_print_simple,
+                            flights_found
+                        ))
+
+                        # Print all flights found
+                        for _ in formatted_flights:
+                            print(_)

@@ -8,18 +8,23 @@ class DataWrapper():
         "FLIGHTS": []
     }
 
+    # Allow for use of [] with DataWrapper
     def __getitem__(self, key):
         return self.data_as_dict[key]
 
+    # Replace data_as_dict with a new set of data
     def update_data_as_dict(self, new_data):
         self.data_as_dict = new_data
 
+    # Return the keys of data_as_dict
     def keys(self):
         return self.data_as_dict.keys()
 
+    # Add an item to data_as_dict
     def add_item(self, data_type, new_object):
         self.data_as_dict[data_type].append(new_object)
 
+    # Given the code and type of object, get the object's full name 
     def get_full_name(self, code, field_name, data_key):
         data_objects = self.data_as_dict[data_key]
         
@@ -28,7 +33,7 @@ class DataWrapper():
                 return getattr(obj, 'full_name')
 
     def is_predefined(self, code, field_name, data_key):
-        # Check that either the city code or airline abbreviation s predefined
+        # Check that the given code/abbreviation is predefined
         type_collection = self.data_as_dict[data_key]
         codes = [ getattr(obj, field_name) for obj in type_collection ]
         return code in codes
@@ -64,24 +69,30 @@ class DataWrapper():
             # For a Flight, it is a duplicate if there is already an object
             # with the exact same data.
             return not new_object in self.data_as_dict[data_key]
-        
+
+    # Clear a list from data_as_dict, specified by the data key
     def clear(self, data_key):
         self.data_as_dict[data_key].clear()
-        
+
+    # Clear ALL lists from data_as_dict
     def reset(self):
         for data_key in self.keys():
             self.clear(data_key)
 
+    # Search for a flight WITH a connection
     def connecting_flight_search(self, cities):
+        # Get all flights
         all_flights = self.data_as_dict['FLIGHTS']
 
+        # List of flights that match input; will be returned at end
         matching_flights = []
 
+        # Get all flights that have the inputted departure city
         departing_flights = list(filter(
             lambda flight_obj: flight_obj.departure_airport_code == cities[0],
             all_flights
         ))
-
+        # Get all flights that have the inputted arrival city
         arriving_flights = list(filter(
             lambda flight_obj: (
                 flight_obj.arrival_airport_code == cities[1] and
@@ -124,10 +135,9 @@ class DataWrapper():
             # that share a common intermediary city
             matching_flight_plan = (leg_one_flights, leg_two_flights)
             matching_flights.append(matching_flight_plan)
-
+        # Return the list of matched flights
         return matching_flights
-    
-            
+
     def simple_flight_search(self, cities):
         all_flights = self.data_as_dict['FLIGHTS']
         # Filter out flights that don't have the specified departure city coden 
