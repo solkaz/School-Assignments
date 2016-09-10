@@ -78,6 +78,7 @@ def search_print_connecting(flight_pair):
     total_price = str(flight_one.price + flight_two.price)
 
     # Return the formatted flight info to be printed
+
     return "{0}; {1}, for a total cost of ${2}".format(
         *flight_infos,
         total_price

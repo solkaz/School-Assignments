@@ -93,7 +93,6 @@ class Flight():
 
     @staticmethod
     def format_args(args):
-        # Return the args with the price converted to an int
         return args[:-1] + [int(args[-1])]
 
     def __str__(self):
