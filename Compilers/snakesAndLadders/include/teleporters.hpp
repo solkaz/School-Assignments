@@ -1,28 +1,17 @@
 #ifndef INCLUDE_TELEPORTERS_HPP_
 #define INCLUDE_TELEPORTERS_HPP_
 
-#include <map>
-
-using TeleporterList = std::map<unsigned int, unsigned int>;
+#include "types.hpp"
 
 class Teleporters {
-    TeleporterList snakes_;
-    TeleporterList ladders_;
+    TeleporterMap snakes_;
+    TeleporterMap ladders_;
+
 public:
     Teleporters();
 
-    void AddTeleporter(char &teleporter_type,
-		       unsigned int &start,
-		       unsigned int &end);
-
-    unsigned int GetNextPosition(char &teleporter_type,
-				 unsigned int &current_pos) {
-	if (teleporter_type == 'L') {
-	    return ladders_[position];
-	} else {
-	    return snakes_[position];
-	}	
-    }
+    void AddTeleporter(TeleporterPair, char&);
+    int GetNextPosition(char&, int);
 };
 
 #endif // INCLUDE_TELEPORTERS_HPP_

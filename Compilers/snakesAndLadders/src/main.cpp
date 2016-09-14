@@ -1,14 +1,16 @@
-#include "board.hpp"
-
-#include <iostream>
+#include "game.hpp"
 
 int main() {
-    unsigned int board_size,
-	num_of_snakes;
-    std::cin >> board_size >> num_of_snakes;
 
-    Board play_board(board_size);
+    Game game_instance;
+
+    game_instance.CreateBoard();
     
+    // Read in the list of snakes and ladders
+    game_instance.ReadInTeleporters();
+
+    // Process the dice roll sequences
+    game_instance.ProcessDiceRollSequences();
     
     return 0;
 }
