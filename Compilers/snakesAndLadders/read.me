@@ -1,0 +1,16 @@
+Name: Jeffrey Held
+Date: 9/14/16
+Platform: Xubuntu 16.04
+Compiler: GNU g++ 5.4.0 & GNU make 4.1
+Special steps:
+	* Ensure that the input.txt file is in the same folder as the ./testing executable
+	* In your terminal:
+	* run `make`
+	* run `./testing`
+Bugs: None
+Summary of approach: 
+	Read in data from the input file and construct a Board object that contains only info about the
+board and can be used independently from dice rolls. This means getting the board's size and the list
+of "teleporters," i.e. Snakes and Ladders. Then read in the dice sequences and apply the individual rolls
+to determine if the player has won the game. The player wins upon reaching (or going past) the final square,
+while they lose if they run out of rolls. It then prints the result of the sequence to STDOUT
