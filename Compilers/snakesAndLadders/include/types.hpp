@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 
+// Type definitions
 using DiceRollSequence = std::vector<int>;
 using TeleporterMap = std::map<int, int>;
 using TeleporterPair = std::pair<int, int>;
