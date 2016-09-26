@@ -1,0 +1,49 @@
+%{
+// Header files to include
+#include <fstream>
+#include <iostream>
+#include <string>
+
+}%
+
+%token<int>NUMBER
+%token<std::string>ADDOP
+%token<std::string>MULOP
+
+%token<std::string> IF "if"
+%token<std::string> ELSE "else"
+%token<char> PARENL "("
+%token<char> PARENR ")"
+
+
+
+%left ADDOP
+%left MULOP
+
+%%
+
+
+
+%%
+
+std::ifstream input;
+
+int yylex() {
+    std::string token;
+    input_file >> token;
+
+    if (std::is_)
+}
+
+int main(int argc, char *argv[]) {
+
+    input_file.open(argv[1], std::ifstream::in);
+
+    if (!input_file) {
+	std::cerr << "Couldn't open input file" << std::endl;
+	return 1;
+    }
+    yyparse();
+    return 0;
+}
+
