@@ -1,0 +1,273 @@
+%{
+#include "file_handler.hpp"
+#include "tokenizer.hpp"
+#include "token_list.hpp"
+
+#include <iostream>
+#include <string>
+
+// Function declarations
+int yylex();
+int yyerror(const char* message) {
+    std::cerr << "Error: " << message << std::endl;
+}
+void PrintStats();
+
+// Shameful global variables
+int num_of_function_defs, num_of_statements;
+%}
+
+// Define a union for yylval			
+%union {
+    int ival;
+    const char* sval;
+}
+
+// Token declarations
+			
+%token<int> NUMBER
+%token<sval> STRING;
+%token<sval> ADDOP
+%token<sval> MULOP
+%token<sval> RELOP
+%token<sval> ASSIGNOP
+%token<sval> FUNCTION
+%token<sval> RETURN
+%token<sval> VAR
+%token<sval> ID
+%token<sval> IF
+%token<sval> ELSE
+%token<sval> WHILE
+%token<sval> AND
+%token<sval> COMMA
+%token<sval> CURLL
+%token<sval> CURLR
+%token<sval> NOT
+%token<sval> OR
+%token<sval> PARENL
+%token<sval> PARENR
+%token<sval> SEMICOLON  
+
+
+%%
+// Grammar definitions
+
+pgm: pgmpart pgm
+     | pgmpart
+     ;
+
+pgmpart: vardecl
+	 | function
+	 ;
+	 
+vardecl: VAR varlist SEMICOLON
+	;
+
+varlist: ID COMMA varlist
+	 | ID
+	 ;
+
+function: FUNCTION ID PARENL PARENR body { ++num_of_function_defs; }
+	  | FUNCTION ID PARENL fplist PARENR body { ++num_of_function_defs; }
+	  ;
+
+body: CURLL bodylist CURLR
+      ;
+
+fplist:	ID COMMA fplist
+	| ID
+	;
+
+bodylist: vardecl bodylist
+	  | stmt bodylist
+	  | /* (Epsilon, AKA Nothing) */
+	  ;
+
+stmt: assign SEMICOLON { ++num_of_statements; }
+      | fcall SEMICOLON { ++num_of_statements; }
+      | while 
+      | if 
+      | body	{ ++num_of_statements; }
+      ;
+
+assign:	ID ASSIGNOP expr
+	;
+
+expr: factor
+      | expr ADDOP factor
+      ;
+
+factor: term
+	| factor MULOP term
+	;
+
+term: ID
+      | NUMBER
+      | PARENL expr PARENR
+      | ADDOP term
+      | fcall
+      ;
+
+bexpr: bfactor
+       | bexpr OR bfactor
+       ;
+
+bfactor: bneg
+	 | bfactor AND bneg
+	 ;
+
+bneg: bterm
+	| NOT bterm
+	;
+
+bterm: expr RELOP expr
+       | PARENL bterm PARENR
+       ;
+
+fcall: ID PARENL PARENR
+       | ID PARENL aplist PARENR
+       ;
+
+aplist: expr COMMA aplist
+	| expr
+	| STRING
+	;
+
+while:	WHILE PARENL bexpr PARENR stmt
+	;
+
+if: IF PARENL bexpr PARENR stmt
+    | IF PARENL bexpr PARENR stmt ELSE stmt
+    ;
+
+%%
+// Shameful, but works for now
+TokenList token_list;
+
+int main(int argc, char *argv[]) {
+
+    // Attempt to open the input file, read its contents,
+    // Tokenize it, and create a TokenList from it.
+    // If the file cannot be opened, then an error is thrown and the program
+    // Is exited
+    try {
+	auto file_name = argv[1];
+	// Throw an error if missing the input file arg
+	if (file_name == nullptr) {
+	    throw std::logic_error("Missing input file argument");
+	} else{
+	    // Construct a wrapper around the input file
+	    FileHandler input_file(file_name);
+
+	    // Extract the contents of the input file
+	    auto file_contents = input_file.ExtractSourceCode();
+	    
+	    // Construct the tokenizer
+	    Tokenizer tokenizer(file_contents);
+	    
+	    // Create the list of tokens from the file's contents
+	    auto tokens = tokenizer.Tokenize();
+	    
+	    // Copy construct the TokenList
+	    token_list = TokenList(tokens);
+	}
+    } catch(const std::logic_error &err) {
+	// Print the error message and exit
+	std::cerr << err.what() << std::endl;
+	return 1;
+    } catch (const std::runtime_error &err) {
+	// Print the error message and exit
+	std::cerr << err.what() << std::endl;
+	return 2;
+    }
+
+    // Reset the counters
+    num_of_function_defs = 0;
+    num_of_statements = 0;
+
+    // Run the parser
+    yyparse();
+
+    // Print the program execution's stats
+    PrintStats();
+    
+    return 0;
+}
+
+void PrintStats() {
+
+    // Print the statistics of the execution
+    std::cout << "The program is correct, and contains:\n"
+	      << '\t' << num_of_statements << " statements\n"
+	      << '\t' << num_of_function_defs << " function definitions\n";
+}
+
+int yylex() {
+
+    // Get the next token from the token_list
+    auto next_token = token_list.NextToken();
+    
+    // Extract the token's type
+    auto next_token_type = next_token.Type();
+
+    // Return -1 to signify EOF
+    if (next_token_type == "EOF") {
+	return -1;
+    } else if (next_token_type == "NUMBER") {
+	// Set yylval to the token's contents (as an int)
+	yylval.ival = std::stoi(next_token.Contents());
+	// return the token type
+	return NUMBER;
+    } else {
+
+	// Shameful
+	// Set yylval to the char * equivalent of the token's contents
+	yylval.sval = next_token.Contents().c_str();
+
+	// Execute an if/else series to determine what token type
+	// to return to yyparse
+	if (next_token_type == "STRING") {
+	    return STRING;
+	} else if (next_token_type == "FUNCTION") {
+	    return FUNCTION;
+        } else if (next_token_type == "ID") {
+	    return ID;
+        } else if (next_token_type == "ADDOP") {
+	    return ADDOP;
+	} else if (next_token_type == "MULOP") {
+	    return MULOP;
+	} else if (next_token_type == "RELOP") {
+	    return RELOP;
+	} else if (next_token_type == "ASSIGNOP") {
+	    return ASSIGNOP;
+	} else if (next_token_type == "AND") {
+	    return AND;
+	} else if (next_token_type == "OR") {
+	    return OR;
+	} else if (next_token_type == "NOT") {
+	    return NOT;
+	} else if (next_token_type == "CURLL") {
+	    return CURLL;
+	} else if (next_token_type == "CURLR") {
+	    return CURLR;
+	} else if (next_token_type == "PARENL") {
+	    return PARENL;	
+	} else if (next_token_type == "PARENR") {
+	    return PARENR;
+	} else if (next_token_type == "COMMA") {
+	    return COMMA;
+	} else if (next_token_type == "SEMICOLON") {
+	    return SEMICOLON;
+	} else if (next_token_type == "IF") {
+	    return IF;
+	} else if (next_token_type == "ELSE") {
+	    return ELSE;
+	} else if (next_token_type == "WHILE") {
+	    return WHILE;
+	} else if (next_token_type == "VAR") {
+	    return VAR;
+	} else if (next_token_type == "RETURN") {
+	    return RETURN;
+	}
+    }
+}

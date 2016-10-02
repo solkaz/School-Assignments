@@ -1,0 +1,5 @@
+*.myl
+*.out
+*.[oa]
+*.txt
+*.tab.c*
