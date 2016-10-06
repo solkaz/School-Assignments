@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-std::vector<unsigned long long> memoized_squares;
+std::vector<SubSquareList> memoized_squares;
 
 int main(int argc, char *argv[]) {
 
@@ -18,12 +18,12 @@ int main(int argc, char *argv[]) {
 	auto n = std::stoi(argv[1]);
 
 	if (n > 20 || n <= 1) {
-	    throw std::invalid_argument("N must be (1, 20]");
+	    throw std::invalid_argument("N must be between 1 and 20 inclusive");
 	}
 
 	std::cout << "Valid integer N inputted: " << n << std::endl;
 
-	solve_
+	Solve(n);
 	
     } catch (const std::invalid_argument &err) {
 	std::cout << err.what() << std::endl;
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-SubSquareList split_even_square(int size) {
+SubSquareList CarveEvenSuperSquare(int size) {
 
     SubSquareList squares;
 
@@ -73,72 +73,82 @@ SubSquareList CarveTopLeftSection(int half_size) {
     auto sub_squares_size = half_size - 1;
 
     // These squares will be placed on the larger square's bounds on both
-    // axes. About ~75% of the square is now covered
+    // axes. 
     squares.emplace_back(sub_square_size, half_size, 0);
     squares.emplace_back(sub_square_size, 0, half_size);
 
     return squares;
 }
 
-SquareGroup solve_square(int size) {
+SubSquareList Solve(int size) {
 
     // 
     SubSquareList squares;
 
     
     if (size % 2 == 0) {
-	squares = split_even_square(size);
+	squares = CarveEvenSuperSquare(size);
     } else {
+
+	auto divisor = IsPrime(size);
+	// Prime
+	if (divisor == -1) {
+	    
+	} else {
+	    if (memoized_squares[divisor].empty()) {
+		Solve(divisor);
+	    } else {
+		auto foo = memoized_squares[divisor];
+
+		auto multiplier = size / divisor;
+		
+		std::transform(foo.begin(), foo.end(), foo.begin(),
+			       [multiplier](SubSquare s) { s.Scale(multiplier); })
+	    }
+	}
+	
 	// Calculate the 'half-size' of the super-square
 	auto half_size = half_super_square_size(size);
 	
-	// First carve the biggest square from the 
-	auto largest_sub_square = carve_biggest_square(size);
-	squares.push_back(largest_sub_square);
+	// Carve out a section from the top left half of the board
+	CarveTopLeftSection(half_size);
 	
-	// Then carve two squares with side length (largest_square_size - 1)
-	// These will be placed above and to the right of the largest squrae
-
-	auto second_largest_sub_squares = carve_second_biggest_squares(size);
-
-	// Extend the SubSquareList to include the 2nd largest sub-squares
-	std::copy(second_largest_sub_squares.begin(),
-		  second_largest_sub_squares.end(),
-		  std::back_iterator(squares)
-	    )
+	// We're now left with a region in the bottom right that is a square of the
+	// same size as the larger sub-square in the top left, but with a 1x1
+	// square removed from the top. We'll call it the Irregular Region,
+	// or simply IR. We now want to find the minimum of squares needed in this
+	// region of the super-square
 	
-	// After these three squares, we're left with a square with the same
-	// side length as the largest square, but with a 1x1 square removed
-	// from the top left. We can find the min. number of squares in this
-	// region by 
-
-	// 
-	if (largest_square_len % 2 == 0) {
-	    // Create the three "normal" squares
-	    
-	    auto incomplete_sq_mini_len = largest_square_len / 2;
-
-
-	} else {
-	    
-	}
+	// half_size is inputted because
+	SolveIR(half_size);
     }
 }
 
-SubSquareList solve_IR(int size) {
-    // 
+SubSquareList SolveIR(int size) {
+    // First run a parity check on the IR's size, just as if we were solving a
+    // normal square. This is because we follow the same strategies as before,
+    // but with a few extra steps
+
+    // Even size means that we can carve for 
     if (size % 2 == 0) {
-	// Check that
+	// 
+	auto IR_sub_squares = CarveEvenIRSubSquares(size);
+	// We'll now be left with a sub-IR in the top left corner of the IR
+	// So we can recursively solve that region by inputting half of the
+	// super-IR's size
+	auto sub_IR_squares = SolveIR(size / 2);
 	
     } else {
 	
     }
 }
 
-SubSquareList carve_even_IR_sub_squares(int size) {
+SubSquareList CarveEvenIRSubSquares(int size) {
 
     SubSquareList squares;
+    // Side lengths of the three sub-squares
     auto sub_square_size = size / 2;
+    // These 
     auto placement = size - 1 + sub_square_size;
     // Top right
     squares.emplace_back(
@@ -163,6 +173,15 @@ SubSquareList carve_even_IR_sub_squares(int size) {
     return squares;
 }
 
-SubSquareList ExtendSubSquareList(SubSquareList source, SubSquareList dest) {
+SubSquareList CarveOddIRSubSquares(int size) {
     
 }
+
+SubSquareList ConcatSubSquareLists(SubSquareList first, SubSquareList second) {
+    SubSquareList new_list(0);
+    std::copy(first.begin(), first.end(), std::back_inserter(new_list));
+    std::copy(second.begin(), second.end(), std::back_inserter(new_list));
+
+    return new_list;
+}
+

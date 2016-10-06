@@ -10,6 +10,12 @@ struct SubSquare {
     int side_length_;
     int x_, y_;
 
+    void Scale(int n) {
+    	x_ *= n;
+    	y_ *= n;
+    	side_length_ *= n;
+    }
+
     std::string to_str() const {
 	return (
 	    std::to_string(side_length_) + ' ' +
