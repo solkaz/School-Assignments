@@ -22,6 +22,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	std::cout << "Valid integer N inputted: " << n << std::endl;
+
+	solve_
 	
     } catch (const std::invalid_argument &err) {
 	std::cout << err.what() << std::endl;
@@ -30,8 +32,6 @@ int main(int argc, char *argv[]) {
 	std::cout << err.what() << std::endl;
 	return 1;
     }
-
-    memoized_squares.clear();
     
     return 0;
 }
@@ -60,22 +60,22 @@ int half_super_square_size(int size) {
 	);
 }
 
-SubSquare carve_biggest_square(int size) {
-    // Compute the subsquare's side length
-
-
-
-    return SubSquare(sub_square_size);
-}
-
-SubSquareList carve_second_biggest_squares(int size) {
+SubSquareList CarveTopLeftSection(int half_size) {
     SubSquareList squares;
 
-    auto largest_size = half_super_square_size(size);
-    auto sub_square_size = largest_size - 1;
+    // Carve the top left corner with the largest sub_square, with the side
+    // length being the half_size (AKA the ceiling of (n/2))
+    squares.emplace_back(half_size, 0, 0);
 
-    squares.emplace_back(sub_square_size, largest_size, 0);
-    squares.emplace_back(sub_square_size, 0, largest_size);
+    // We'll then carve the next two largest squares, which will have a side
+    // length of half_size - 1, or one less than the largest square. They will
+    // take up the top right and bottom left corner of the super-square
+    auto sub_squares_size = half_size - 1;
+
+    // These squares will be placed on the larger square's bounds on both
+    // axes. About ~75% of the square is now covered
+    squares.emplace_back(sub_square_size, half_size, 0);
+    squares.emplace_back(sub_square_size, 0, half_size);
 
     return squares;
 }
