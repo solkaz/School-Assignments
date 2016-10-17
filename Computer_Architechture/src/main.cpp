@@ -6,6 +6,7 @@
 using Term = std::string;
 using BoolExpr = std::vector<Term>;
 using TermBucket = std::vector<BoolExpr>;
+using UsedTermRef = std::vector<std::vector<bool>>;
 
 void PrintExpression(BoolExpr);
 BoolExpr MinimizeExpression(BoolExpr);
@@ -57,7 +58,18 @@ BoolExpr MinimizeExpression(BoolExpr bool_expr) {
     // Sort the terms into buckets based on their # of variable complements
     auto terms_buckets = MakeTermBucket(bool_expr);
     PrintTermBucket(terms_buckets);
+
+    
+    
     return BoolExpr();
+}
+
+BoolExpr FactorBoolExpr(BoolExpr bool_expr) {
+    BoolExpr new_expr = bool_expr;
+    do {
+	auto terms_buckets = MakeTermBucket(bool_expr);
+	new_expr = FactorTermBucket(terms_buckets);
+    } while (new_expr.size())
 }
 
 TermBucket MakeTermBucket(BoolExpr bool_expr) {
@@ -74,6 +86,91 @@ TermBucket MakeTermBucket(BoolExpr bool_expr) {
     }
 
     return buckets;
+}
+
+BoolExpr FactorTermBucket(TermBucket buckets) {
+    auto used_ref = MakeUsedTermRef(buckets);
+    int num_buckets = buckets.size();
+
+    BoolExpr new_terms(0);
+    
+    for (auto a = 0; a < num_buckets - 1; ++a) {
+	auto b = a + 1;
+	auto a_bucket_size = buckets[a].size();
+	auto b_bucket_size = buckets[b].size();
+
+	// Don't try to compare the two buckets if one of them is empty
+	if (!(a_bucket_size && b_bucket_size)) {
+	    // Increment the counter by one as it'll be guaranteed to result
+	    // in another continue
+	    ++a; continue;
+	}
+	for (auto i = 0; i < a_bucket_size; ++i) {
+	    for (auto j = 0; j < b_bucket_size; ++j) {
+		if (!(used_ref[a][i] && used_ref[b][j]) &&
+		    SetDifference(buckets[a][i], buckets[b][j]) == 1) {
+
+		    // Set the used references for a and b
+		    used_ref[a][i] = true, used_ref[b][j] = true;
+		    auto new_term = CombineTerms(buckets[a][i], buckets[b][j]);
+		    new_terms.push_back(new_term);
+		}
+	    }
+	}
+    }
+
+    auto unused_terms = FlattenTermBucket(buckets, used_ref);
+    
+    return new_terms;
+}
+
+BoolExpr FlattenTermBucket(TermBucket terms_buckets) {
+    BoolExpr bool_expr;
+    for (const auto &bucket: terms_buckets) {
+	for (const auto &term : bucket) {
+	    bool_expr.push_back(term);
+	}
+    }
+    return bool_expr;
+}
+
+BoolExpr FlattenTermBucket(TermBucket terms_buckets, UsedTermRef used_terms) {
+    BoolExpr bool_expr;
+    auto num_buckets = terms_buckets.size();
+    for (int i = 0; i < num_buckets; ++i) {
+	auto bucket_size = terms_buckets[i].size();
+	for (int j = 0; j < bucket_size; ++j) {
+	    if (!used_terms[i][j]) {
+		bool_expr.push_back(term);
+	    }
+	}
+    }
+    return bool_expr;
+}
+
+unsigned int SetDifference(Term a, Term b) {
+    std::string c;
+    std::set_difference(a.cbegin(), a.cend(),
+			b.cbegin(), b.cend(),
+			std::back_inserter(c));
+    return static_cast<unsigned int>(c.size());
+}
+
+Term CombineTerms(Term a, Term b) {
+    std::string c;
+    std::set_intersection(a.cbegin(), a.cend(),
+			  b.cbegin(), b.cend(),
+			  std::back_inserter(c));
+    return c;
+}
+
+UsedTermBucket MakeUsedTermRef(TermBucket buckets) {
+    auto bucket_size = buckets.size();
+    UsedTermRef used_buckets(buckets.size());
+    for (auto i = 0; i < bucket_size; ++i) {
+	used_buckets[i].resize(buckets[i].size(), false);
+    }
+    return used_buckets;
 }
 
 void PrintTermBucket(TermBucket buckets) {
