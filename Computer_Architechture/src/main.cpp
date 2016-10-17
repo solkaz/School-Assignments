@@ -1,10 +1,17 @@
 #include "file_handler.hpp"
 
+#include <algorithm>
 #include <iostream>
 
-using BoolExpr = std::vector<std::string>;
+using Term = std::string;
+using BoolExpr = std::vector<Term>;
+using TermBucket = std::vector<BoolExpr>;
 
-void PrintExpression(std::vector<std::string>);
+void PrintExpression(BoolExpr);
+BoolExpr MinimizeExpression(BoolExpr);
+TermBucket MakeTermBucket(BoolExpr);
+unsigned int NumberOfComplements(Term);
+void PrintTermBucket(TermBucket);
 
 int main(int argc, char* argv[]) {
 
@@ -18,13 +25,13 @@ int main(int argc, char* argv[]) {
 	std::cout << "The original boolean expression is:\n";
 	PrintExpression(i);
 
-	//auto minimized = MinimizeExpression(i);
+	auto minimized = MinimizeExpression(i);
 
 	// std::cout << "The minimized boolean expression is:\n";
 	// Print the minimized boolean expression
 	// PrintExpression(minimized);
     }
-    
+
     return 0;
 }
 
@@ -44,4 +51,45 @@ void PrintExpression(BoolExpr bool_expr) {
     }
 
     std::cout << expr << std::endl;
+}
+
+BoolExpr MinimizeExpression(BoolExpr bool_expr) {
+    // Sort the terms into buckets based on their # of variable complements
+    auto terms_buckets = MakeTermBucket(bool_expr);
+    PrintTermBucket(terms_buckets);
+    return BoolExpr();
+}
+
+TermBucket MakeTermBucket(BoolExpr bool_expr) {
+    TermBucket buckets;
+
+    // Sort each Term in the BoolExpr into its correct
+    // bucket based on the number of variable complements
+    for (auto &i : bool_expr) {
+	auto num_complements = NumberOfComplements(i);
+	if (buckets.size() < num_complements + 1) {
+	    buckets.resize(num_complements + 1);
+	}
+	buckets[num_complements].push_back(i);
+    }
+
+    return buckets;
+}
+
+void PrintTermBucket(TermBucket buckets) {
+    for (const auto &bucket : buckets) {
+	for (const auto &term : bucket) {
+	    std::cout << term << ' ';
+	}
+	std::cout << std::endl;
+    }
+}
+
+unsigned int NumberOfComplements(Term term) {
+    return static_cast<unsigned int>(
+	std::count_if(
+	    term.cbegin(), term.cend(),
+	    [](char c) { return std::islower(c); }
+	    )
+	);
 }
