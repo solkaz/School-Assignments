@@ -3,26 +3,33 @@
 
 #include <iostream>
 
-int main() {
+int main(int argc, char *argv[]) {
 
-    FileHandler fh;
-    // Get the location of the source code file
-    fh.GetFileLocation();
-    // Extract the file's contents, which will be a std::string
-    auto file_contents = fh.ExtractSourceCode();
+    try {
+	auto file_name = argv[1];
+	if (file_name == nullptr) {
+	    throw std::logic_error("Missing input file argument");
+	} 
+	FileHandler input_file(file_name);
+	auto file_contents = input_file.ExtractSourceCode();
 
-    if (!file_contents.empty()) {
-	// Construct a Tokenizer from the file's contents
+	if (file_contents.empty()) {
+	    throw std::logic_error("Empty file supplied");
+	}
+	    
 	Tokenizer tokenizer(file_contents);
-    
-	// Tokenize the contents and return a std::vector<TokenPair>
-	// which will consist of the tokens
-	auto list_of_tokens = tokenizer.Tokenize();
+	auto tokens = tokenizer.Tokenize();
 
 	// Print the list of tokens
-	for (auto &token : list_of_tokens) {
+	for (auto &token : tokens) {
 	    std::cout << token.FormatToPrint() << std::endl;
-	}	
+	}
+    } catch(const std::logic_error &err) {
+	std::cerr << err.what() << std::endl;
+	return 1;
+    } catch (const std::runtime_error &err) {
+	std::cerr << err.what() << std::endl;
+	return 1;
     }
 
     return 0;

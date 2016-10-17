@@ -6,6 +6,7 @@ import itertools
 import json
 import utils
 
+
 class DataController():
     data = attr.ib()
     data_file = attr.ib()
@@ -39,12 +40,13 @@ class DataController():
             # if it has an invalid format
             try:
                 loaded_data = json.loads(data_from_file)
-            except ValueError: # Exit function if the file has an invalid format
+            except ValueError:
+                # Exit function if the file has an invalid format
                 print('Invalid JSON format; aborting loading the data file')
                 return
             
             # Clear the pre-existing list of the data type
-            self.data.reset()            
+            self.data.reset()
 
             # Create the data type objects from the loaded data
             data_as_object = data_types.create_from_file_data(loaded_data)
@@ -55,14 +57,14 @@ class DataController():
 
                 # Update last_modified_time
                 self.data_file.update_last_modified_time()
-            else: # Do nothing if there was an error
+            else:
+                # Do nothing if there was an error
                 pass
-            
 
     def list_items(self, type_to_list):
         # Collect the list of items to print from the DataWrapper
         list_of_items = self.data.prep_for_list(type_to_list)
-        
+
         # If the list is not empty, print the contents
         if list_of_items:
             for item in list_of_items:
@@ -73,10 +75,10 @@ class DataController():
 
     def add_item(self, data_type, data_info):
 
-        # Flight relies on pre-existing data (city and airline codes); check that
-        # they have been predefined
-        if data_type == 'FLIGHTS' and not self.data.flight_info_check(data_info[:-1]):
-            print('One of the codes entered has not been defined\n'+
+        # Flight relies on pre-existing data (city and airline codes);
+        # check that they have been predefined
+        if (data_type == 'FLIGHTS' and not self.data.flight_info_check(data_info[:-1])):
+            print('One of the codes entered has not been defined\n'
                   'Check your input and try again.')
             return
         
@@ -91,7 +93,8 @@ class DataController():
                 self.data.add_item(data_type, new_object)
             else:
                 print("Attempt to add a duplicate record")
-        else: # Do nothing if invalid data was supplied
+        else:
+            # Do nothing if invalid data was supplied
             pass
 
     def search_for_flight(self, args):
@@ -109,10 +112,9 @@ class DataController():
                 print("Number of connections needs to be an int")
                 return
             else:
-                # Convert the truth value of last arg ("Is a connection allowed?")
-                # to bool
+                # Convert the truth value of last arg 
+                # ("Is a connection allowed?") to bool
                 connection_requested = bool(int(args[-1]))
-                
                 # Construct a tuple pair consisting of the two cities
                 cities = tuple(args[:-1])
 
@@ -130,7 +132,9 @@ class DataController():
                             # Connected flights should be a tuple consisting of
                             # flights that share an intermediary city. This will
                             # create all possible flight plans
-                            flight_product = list(itertools.product(*connected_flights))
+                            flight_product = list(
+                                itertools.product(*connected_flights)
+                            )
 
                             # Append the products to the list of flights to print
                             flight_plans += flight_product

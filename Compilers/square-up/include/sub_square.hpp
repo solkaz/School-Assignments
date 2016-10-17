@@ -16,6 +16,11 @@ struct SubSquare {
     	side_length_ *= n;
     }
 
+    void AddOffset(int offset) {
+	x_ += offset;
+	y_ += offset;
+    }
+
     std::string to_str() const {
 	return (
 	    std::to_string(side_length_) + ' ' +

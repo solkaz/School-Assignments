@@ -1,6 +1,7 @@
 import json
 import os
 
+
 class DataFile():
 
     # Location of where the data file should be
@@ -11,7 +12,7 @@ class DataFile():
         # Attempt to open the data file; if it doesn't exist, then it an
         # OSError will be raised
         try:
-            with open(self.DATA_FILE_LOCATION) as data_file:
+            with open(self.DATA_FILE_LOCATION):
                 pass
             return True
         except OSError:

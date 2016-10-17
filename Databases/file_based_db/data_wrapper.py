@@ -1,6 +1,7 @@
 import attr
 import utils
 
+
 class DataWrapper():
     data_as_dict = {
         "CITIES": [],
@@ -35,7 +36,7 @@ class DataWrapper():
     def is_predefined(self, code, field_name, data_key):
         # Check that the given code/abbreviation is predefined
         type_collection = self.data_as_dict[data_key]
-        codes = [ getattr(obj, field_name) for obj in type_collection ]
+        codes = [getattr(obj, field_name) for obj in type_collection]
         return code in codes
 
     def flight_info_check(self, args):
@@ -188,7 +189,7 @@ class DataWrapper():
         # dictionary representations of each object, which can be used to easily
         # create the objects again upon being loaded
 
-        data_to_save = {}        
+        data_to_save = {}
         # Apply attrs.asdict to each section in DATA_AS_DICT to get a dict of each object
         for data_type in self.keys():
             data_to_save[data_type] = [

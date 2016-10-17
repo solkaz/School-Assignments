@@ -1,12 +1,12 @@
 import attr
-import re
 import utils
+
 
 @attr.s
 class City():
     city_code = attr.ib(validator=attr.validators.instance_of(str))
     full_name = attr.ib(validator=attr.validators.instance_of(str))
-    
+
     @staticmethod
     def validate(args):
         # Ensure that the city code and full name doesn't contain any digits
@@ -21,16 +21,17 @@ class City():
             'city_code',
             'full_name'
         ]
-    
+
     @staticmethod
     def format_args(args):
         return [
             args[0],
             ' '.join(args[1:])
         ]
-    
+
     def __str__(self):
         return ' '.join([self.city_code, self.full_name])
+
 
 @attr.s
 class Airline():
@@ -69,11 +70,12 @@ class Flight():
     arrival_airport_code = attr.ib(validator=attr.validators.instance_of(str))
     # Price *should* be an int, but for formatting purposes it is a string
     # it will be checked that it is a valid int, however
-    price = attr.ib(validator=attr.validators.instance_of(int)) 
+    price = attr.ib(validator=attr.validators.instance_of(int))
 
     @staticmethod
     def validate(args):
-        # Check that the codes don't contain digits and the price is a valid int
+        # Check that the codes don't contain digits
+        # and the price is a valid int
         return (
             not(
                 utils.has_digits(args['airline_code']) or
@@ -100,9 +102,10 @@ class Flight():
         return ' '.join([
             self.airline_code,
             self.departure_airport_code,
-            self.arrival_airport_code, 
+            self.arrival_airport_code,
             str(self.price)
         ])
+
 
 def getClassFromKey(key):
     # Given the key of an object, return the respective class object
@@ -113,12 +116,12 @@ def getClassFromKey(key):
     elif key == 'FLIGHTS':
         return Flight
 
+
 def create_from_entry(data_key, args):
     # Get the data type to create
     data_type = getClassFromKey(data_key)
     # Get the fields of the data type
     data_field_names = data_type.get_fields()
-    
     # Each type is expecting a certain number of args, and perhaps in a
     # certain order/format; format them as such
     formatted_args = data_type.format_args(args)
@@ -130,11 +133,12 @@ def create_from_entry(data_key, args):
         # Create the object and return it
         new_object = data_type(**mapped_args)
         return new_object
-    # Alert the user that invalid data was supplied 
+    # Alert the user that invalid data was supplied
     else:
-        print('Invalid data supplied to Add operation. Please check data\n'+
-              'and try again')
+        print('Invalid data supplied to Add operation.\n' +
+              'Please check data and try again')
         return None
+
 
 def create_from_file_data(loaded_data):
     # List of objects that were created from the data file
@@ -161,10 +165,10 @@ def create_from_file_data(loaded_data):
 
             # Alert the user that there was invalid data in the data file
             else:
-                print('Invalid data supplied to Add operation. Please check data\n'+
-                      'and try again')
+                print('Invalid data supplied to Add operation.\n' +
+                      'Please check data and try again')
                 # Return an empty list
                 return []
-    
+
     # Return the list of created objects
     return created_objects

@@ -14,8 +14,11 @@ AIRLINE = 'a'
 
 # Check if a string has digits with a regex
 _digits = re.compile('\d')
+
+
 def has_digits(string):
     return bool(_digits.search(string))
+
 
 def is_valid_int(string):
     # Attempt to convert the str input into an int
@@ -27,6 +30,7 @@ def is_valid_int(string):
         print('Invalid integer type supplied')
         return False
 
+    
 def print_help():
     # Print a basic help menu
     print('commands\n' +
@@ -37,6 +41,7 @@ def print_help():
           'q = quit program execution\n' +
           'h = display this help text')
 
+    
 def convert_char_to_data_key(data_type_char):
     # Convert the char representation of the data type
     if data_type_char == CITY:
@@ -48,7 +53,8 @@ def convert_char_to_data_key(data_type_char):
     else:
         print("Invalid data type supplied to list operation")
         return ""
-    
+
+
 def format_flight_info(flight_info):
     # Returns a formatted string with a flight's information, making it
     # suitable for printing

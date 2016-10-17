@@ -48,7 +48,7 @@ std::vector<TokenPair> Tokenizer::Tokenize() {
 	    // Get the TokenPairType for the punctuation char
 	    new_token_pair = HandlePunctuation(current_char);
 	    
-	    Increment();
+	    
 	    
 	    // Comment isn't a token type that's printed; skip adding it
 	    if (new_token_pair.first == "COMMENT") {
@@ -300,6 +300,11 @@ TokenPairType Tokenizer::HandlePunctuation(char c) {
 	    break;
 	}
     }
+
+    if (token_type != "STRING") {
+	Increment();
+    }
+    
 
     // Make a pair from the token_type & token_contents and return it
     TokenPairType token_pair(token_type, token_contents);

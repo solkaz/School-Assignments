@@ -1,5 +1,5 @@
 all:
-	g++ src/new.cpp \
+	g++ src/main.cpp \
 	-I./include \
 	-std=c++11 -g -o testing
 
