@@ -5,4 +5,12 @@ all:
 	-g -o testing
 
 run:
-	./testing < input.txt
+	./testing < Data2.txt
+
+print:
+	make -s run > output.txt
+
+clean:
+	rm -f ./testing
+
+.PHONY: clean
