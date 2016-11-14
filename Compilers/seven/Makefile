@@ -1,9 +1,11 @@
 # 2-in-1 command to completely compile project
 all: venison compile
 
+remake: clean all run
+
 # Run bison on the ypp file
 venison:
-	bison -L c++ \
+	bison \
 	src/main.ypp
 
 # Compile into an executable
@@ -16,13 +18,16 @@ compile:
 
 # Run the program on all of the input files
 run:
-	./testing p3test1.myl && echo "" &&\
-	./testing p3test2.myl && echo "" &&\
-	./testing p3test3.myl && echo ""
+	./testing p3test1.myl && echo "---" &&\
+	./testing p3test2.myl && echo "---" &&\
+	./testing p3test3.myl && echo "---"
 
-# Output the contents of the expected output files
-expected:
-	cat p3test1.out && echo "" &&\
-	cat p3test2.out && echo "" &&\
-	cat p3test3.out && echo ""
+inputs:
+	cat p3test1.myl && echo "------" && \
+	cat p3test2.myl && echo "------" && \
+	cat p3test3.myl
 
+clean:
+	rm -f ./testing ./main.tab.cpp
+
+.PHONY: clean

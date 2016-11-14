@@ -20,8 +20,8 @@ public:
 
     std::string FormatToPrint();
 
-    std::string Type() { return token_pair_.first; }
-    std::string Contents() { return token_pair_.second; }
+    std::string Type() const { return token_pair_.first; }
+    std::string Contents() const { return token_pair_.second; }
 };
 
 #endif // TOKEN_PAIR_HPP_
