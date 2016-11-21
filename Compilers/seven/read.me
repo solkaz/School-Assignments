@@ -9,11 +9,4 @@ Special steps:
 	* to compare output, run `make expected` to `cat` the expected output files
 Bugs: None
 Summary of approach: 
-	Utilizing the lexical analyzer from the first assignment, the program gets the
-	location of the input file from argv and attempts to load it; an error will be
-	thrown if the arg is missing or if the string is an invalid file location.
-	The file's contents are then extracted as a string, and is processed into a list
-	of tokens, which are then used by yylex to set the value of yylval and return the
-	correct token type (by Bison). If it is a correct program (as in it follows the)
-	grammar, it outputs a message with the # of function definitions and # of
-	statements; otherwise, an error message is produced
+	It generates intermediate code based on the tokens

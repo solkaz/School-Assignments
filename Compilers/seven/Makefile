@@ -18,9 +18,9 @@ compile:
 
 # Run the program on all of the input files
 run:
-	./testing p3test1.myl && echo "---" &&\
-	./testing p3test2.myl && echo "---" &&\
-	./testing p3test3.myl && echo "---"
+	./testing p3test1.myl && echo &&\
+	./testing p3test2.myl && echo &&\
+	./testing p3test3.myl && echo
 
 inputs:
 	cat p3test1.myl && echo "------" && \

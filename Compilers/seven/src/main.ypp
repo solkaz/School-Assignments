@@ -2,34 +2,47 @@
 
 #include "file_handler.hpp"
 #include "print.hpp"
+#include "symbol_table.hpp"
 #include "tokenizer.hpp"
 #include "token_list.hpp"
 
 #include <iostream>
+#include <stack>
 #include <string>
 
 using namespace std;
 
 int num_temp_vars;
-int num_layers;
+int num_labels;
 TokenList token_list;
+
+stack<string> while_stack;
+stack<string> if_stack;
+stack<SymbolTable> table_stack;
 
 int yylex();
 int yyerror(const char* msg) {
     cerr << "Error: " << msg << endl;
     return 1;
 }
-
+    
 string NewTempVar() {
     return "__T" + to_string(num_temp_vars++);
 }
 
-string NewLayer() {
-    return "__L" + to_string(num_layers++);
+string CurrentTempVar() {
+    return "__T" + to_string(num_temp_vars - 1);
 }
 
-%}
+string NewLabel() {
+    return "__L" + to_string(num_labels++);
+}
 
+string CurrentLabel() {
+    return "__L" + to_string(num_labels - 1);
+}
+
+%} 
 %union {
     bool bval;
     int ival;
@@ -44,19 +57,21 @@ string NewLayer() {
     CURLR NOT OR PARENL PARENR SEMICOLON
     ;
     
-%type<ival>
-    expr factor
+%type<sval>
+    expr factor fcall body term bterm bexpr bfactor
+    bneg
     ;
     
-%type<sval>
-    fcall body
-    ;
+%left ADDOP
+%left MULOP
 
 %%
 
 pgm:
-    pgmpart pgm
-    | pgmpart
+    pgmpart pgm 
+    | pgmpart {
+        table_stack.top().PrintTable();
+    }
     ;
     
 pgmpart:
@@ -69,27 +84,60 @@ vardecl:
 	;
 	
 varlist:
-    ID COMMA varlist
-    | ID
+    ID COMMA varlist {
+        string id = *$1; string type = "int";
+        table_stack.top().AddSymbol(
+            make_pair(id, type)
+        );
+    }
+    | ID {
+        string id = *$1;
+        string type = "int";
+        table_stack.top().AddSymbol(
+            make_pair(id, type)
+        );
+    }
     ;
 
 function:
     FUNCTION ID PARENL PARENR {
+        string id = *$2;
+        table_stack.top().AddSymbol(
+            make_pair(id, string("func"))
+        );
         // Create a new symbol table for the function
-        num_layers = 0;
+        table_stack.emplace(id);
         // Print the function out
-        PrintFunc(*$2);
-    } body
+        PrintLabel(*$2);
+    } body {
+        PrintInstruct("RET");
+        cout << endl;
+        // Print the symbol table out
+        table_stack.top().PrintTable();
+        cout << endl;
+        table_stack.pop();
+    }
     | FUNCTION ID PARENL fplist PARENR {
+        string id = *$2;
+        table_stack.top().AddSymbol(
+            make_pair(id, string("func"))
+        );
         // Create a new symbol table for the function
-        num_layers = 0;
+        table_stack.emplace(*$2);
         // Print the function out
-        PrintFunc(*$2);
-    } body
+        PrintLabel(*$2);
+    } body {
+        PrintInstruct("RET");
+        cout << endl;
+        // Print the symbol table
+        table_stack.top().PrintTable();
+        cout << endl;
+        table_stack.pop();
+    }
     ;
 
 body:
-    CURLL bodylist CURLR { $$ = new string("foo"); }
+    CURLL bodylist CURLR
     ;
 
 fplist:	
@@ -112,68 +160,130 @@ stmt:
     ;
 
 assign:
-    ID ASSIGNOP expr
+    ID ASSIGNOP expr {
+        string args = *$3 + ", " + *$1;
+        PrintInstruct("MOV", args);
+    }
     ;
 
 expr: 
-    factor
-    | expr ADDOP factor
+    factor {
+        $$ = $1;
+    }
+    | expr ADDOP factor {
+        string instruction = ((*$2)[0] == '+' ? "ADD" : "SUB");
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct(instruction, args);
+        $$ = new string (CurrentTempVar());
+    }
     ;
 
 factor:
     term {
-        // Look up the term's value in the symbol table and set it to factor
+        $$ = $1;
     }
-	| factor MULOP term
+	| factor MULOP term {
+	    string instruction = ((*$2)[0] == '*' ? "MUL" : "DIV");
+	    string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+	    table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct(instruction, args);
+        $$ = new string (CurrentTempVar());
+	}
 	;
 
 term: 
-    ID
-    | NUMBER {
-        // Create a new temp variable
-        // MOV the NUMBER into the temp variable
-        // set term to the new temp variable
+    ID {
+        $$ = $1;
     }
-    | PARENL expr PARENR
-    | ADDOP term
+    | NUMBER {
+        $$ = new string (to_string($1));
+    }
+    | PARENL expr PARENR {
+        $$ = $1;
+    }
+    | ADDOP term {
+        if ((*$1)[0] == '-') {
+            string new_temp = NewTempVar();
+            table_stack.top().AddSymbol(
+                make_pair(CurrentTempVar(), string("int"))
+	        );
+            string args = *$2 + ", " + new_temp;
+            PrintInstruct("NEG", args);
+            $$ = new string (new_temp);
+        }
+    }
     | fcall {
-        // Create a new temp variable
-        // 
+        $$ = $1;
     }
     ;
 
 bexpr: 
-    bfactor
-    | bexpr OR bfactor
+    bfactor { $$ = $1; }
+    | bexpr OR bfactor {
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct("OR", args);
+        $$ = new string(CurrentTempVar());
+    }
     ;
 
 bfactor: 
-    bneg
-    | bfactor AND bneg
+    bneg { $$ = $1; }
+    | bfactor AND bneg {
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct("AND", args);
+        $$ = new string(CurrentTempVar());
+    }
     ;
 
 bneg: 
-    bterm
-	| NOT bterm
+    bterm { $$ = $1; }
+	| NOT bterm {
+	    string args = *$1 + ", " + NewTempVar();
+	    table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+	    PrintInstruct("NEG", args);
+	    $$ = new string(CurrentTempVar());
+	}
 	;
 
 bterm: 
     expr RELOP expr {
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        string instruction;
         if (*$2 == "<") {
-            //PrintInstruct("LT")
+            instruction = "LT";
         } else if (*$2 == ">") {
-            
+            instruction = "GT";
         } else if (*$2 == "==") {
-            
+            instruction = "EQ";
         } else if (*$2 == "!=") {
-            
+            instruction = "NEQ";
         } else if (*$2 == "<=") {
-            
+            instruction = "LTE";
         } else if (*$2 == ">=") {
-            
+            instruction = "GTE";
         }
+        PrintInstruct(instruction, args);
+        $$ = new string(CurrentTempVar());
     }
-    | PARENL bterm PARENR
+    | PARENL bterm PARENR {
+        $$ = $2;
+    }
     ;
 
 fcall: 
@@ -181,31 +291,77 @@ fcall:
         // Print the CALL instruction
         PrintInstruct("CALL", *$1);
         // Store the result in a new temp variable
-        //PrintInstruct("STRET")
+        PrintInstruct("STRET", NewTempVar());
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        $$ = new string (CurrentTempVar());
     }
     | ID PARENL aplist PARENR {
         PrintInstruct("CALL", *$1);
         // Store the result in a new temp variable
-        //PrintInstruct("STRET")
+        PrintInstruct("STRET", NewTempVar());
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        $$ = new string (CurrentTempVar());
+        
     }
     ;
 
 aplist:
-    expr COMMA aplist
-	| expr 
-	| STRING
+    expr COMMA aplist {
+        PrintInstruct("PARAM", *$1);
+    }
+	| expr {
+	    PrintInstruct("PARAM", *$1);
+	}
+	| STRING {
+	    PrintInstruct("PARAM", *$1);
+	}
 	;
 
 while:
-    WHILE PARENL bexpr PARENR stmt
+    WHILE {
+        PrintLabel(CurrentLabel());
+        while_stack.push(CurrentLabel());
+    } PARENL bexpr PARENR {
+        string args = *$4 + ", " + to_string(0);
+        PrintInstruct("CMP", args);
+        PrintInstruct("BEQ", NewLabel());
+        while_stack.push(CurrentLabel());
+    } stmt {
+        string outLayer = while_stack.top(); while_stack.pop();
+        string topLayer = while_stack.top(); while_stack.pop();
+        PrintInstruct("BA", topLayer);
+        
+        PrintLabel(outLayer);
+    }
 	;
 
 if: 
-    IF PARENL bexpr PARENR stmt elsepart
+    IF {
+        if_stack.push(CurrentLabel());
+    } PARENL bexpr PARENR {
+        string args = *$4 + ", " + to_string(0);
+        PrintInstruct("CMP", args);
+        PrintInstruct("BEQ", NewLabel());
+        if_stack.push(CurrentLabel());
+    } stmt {
+        
+        PrintInstruct("BA", NewLabel());
+        string outLayer = if_stack.top(); if_stack.pop();
+        PrintLabel(outLayer);
+        if_stack.push(CurrentLabel());
+    } elsepart {
+        PrintLabel(if_stack.top()); if_stack.pop();
+    }
     ;
 
 elsepart: 
-    ELSE stmt
+    ELSE stmt {
+        
+    }
 	| /* Epsilon */
 	;
 
@@ -239,6 +395,8 @@ int main(int argc, char* argv[]) {
         cerr << err.what() << endl;
         return 2;
     }
+    // Create the global label
+    table_stack.emplace("__GLOBAL__");
     
     // Reset the counters
     num_temp_vars = 0;
