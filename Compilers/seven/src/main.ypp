@@ -116,6 +116,7 @@ function:
         table_stack.top().PrintTable();
         cout << endl;
         table_stack.pop();
+        NewLabel();
     }
     | FUNCTION ID PARENL fplist PARENR {
         string id = *$2;
@@ -133,6 +134,7 @@ function:
         table_stack.top().PrintTable();
         cout << endl;
         table_stack.pop();
+        NewLabel();
     }
     ;
 
