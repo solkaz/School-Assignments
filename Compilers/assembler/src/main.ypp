@@ -1,0 +1,477 @@
+%{
+
+#include "file_handler.hpp"
+#include "print.hpp"
+#include "symbol_table.hpp"
+#include "tokenizer.hpp"
+#include "token_list.hpp"
+
+#include <iostream>
+#include <stack>
+#include <string>
+
+using namespace std;
+
+int num_temp_vars;
+int num_labels;
+TokenList token_list;
+
+stack<string> while_stack;
+stack<string> if_stack;
+stack<SymbolTable> table_stack;
+
+int yylex();
+int yyerror(const char* msg) {
+    cerr << "Error: " << msg << endl;
+    return 1;
+}
+    
+string NewTempVar() {
+    return "__T" + to_string(num_temp_vars++);
+}
+
+string CurrentTempVar() {
+    return "__T" + to_string(num_temp_vars - 1);
+}
+
+string NewLabel() {
+    return "__L" + to_string(num_labels++);
+}
+
+string CurrentLabel() {
+    return "__L" + to_string(num_labels - 1);
+}
+
+%} 
+%union {
+    bool bval;
+    int ival;
+    string * sval;
+}
+
+%token<ival> NUMBER
+%token<sval> 
+    STRING ADDOP MULOP RELOP ASSIGNOP
+    FUNCTION RETURN VAR ID IF
+    ELSE WHILE AND COMMA CURLL
+    CURLR NOT OR PARENL PARENR SEMICOLON
+    ;
+    
+%type<sval>
+    expr factor fcall body term bterm bexpr bfactor
+    bneg
+    ;
+    
+%left ADDOP
+%left MULOP
+
+%%
+
+pgm:
+    pgmpart pgm 
+    | pgmpart {
+        table_stack.top().PrintTable();
+    }
+    ;
+    
+pgmpart:
+    vardecl
+	| function
+	;
+	 
+vardecl:
+    VAR varlist SEMICOLON
+	;
+	
+varlist:
+    ID COMMA varlist {
+        string id = *$1; string type = "int";
+        table_stack.top().AddSymbol(
+            make_pair(id, type)
+        );
+    }
+    | ID {
+        string id = *$1;
+        string type = "int";
+        table_stack.top().AddSymbol(
+            make_pair(id, type)
+        );
+    }
+    ;
+
+function:
+    FUNCTION ID PARENL PARENR {
+        string id = *$2;
+        table_stack.top().AddSymbol(
+            make_pair(id, string("func"))
+        );
+        // Create a new symbol table for the function
+        table_stack.emplace(id);
+        // Print the function out
+        PrintLabel(*$2);
+    } body {
+        PrintInstruct("RET");
+        cout << endl;
+        // Print the symbol table out
+        table_stack.top().PrintTable();
+        cout << endl;
+        table_stack.pop();
+        NewLabel();
+    }
+    | FUNCTION ID PARENL fplist PARENR {
+        string id = *$2;
+        table_stack.top().AddSymbol(
+            make_pair(id, string("func"))
+        );
+        // Create a new symbol table for the function
+        table_stack.emplace(*$2);
+        // Print the function out
+        PrintLabel(*$2);
+    } body {
+        PrintInstruct("RET");
+        cout << endl;
+        // Print the symbol table
+        table_stack.top().PrintTable();
+        cout << endl;
+        table_stack.pop();
+        NewLabel();
+    }
+    ;
+
+body:
+    CURLL bodylist CURLR
+    ;
+
+fplist:	
+    ID COMMA fplist
+	| ID
+	;
+
+bodylist:
+    vardecl bodylist
+    | stmt bodylist
+    | /* (Epsilon, AKA Nothing) */
+    ;
+
+stmt: 
+    assign SEMICOLON
+    | fcall SEMICOLON
+    | while
+    | if
+    | body
+    ;
+
+assign:
+    ID ASSIGNOP expr {
+        string args = *$3 + ", " + *$1;
+        PrintInstruct("MOV", args);
+    }
+    ;
+
+expr: 
+    factor {
+        $$ = $1;
+    }
+    | expr ADDOP factor {
+        string instruction = ((*$2)[0] == '+' ? "ADD" : "SUB");
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct(instruction, args);
+        $$ = new string (CurrentTempVar());
+    }
+    ;
+
+factor:
+    term {
+        $$ = $1;
+    }
+	| factor MULOP term {
+	    string instruction = ((*$2)[0] == '*' ? "MUL" : "DIV");
+	    string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+	    table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct(instruction, args);
+        $$ = new string (CurrentTempVar());
+	}
+	;
+
+term: 
+    ID {
+        $$ = $1;
+    }
+    | NUMBER {
+        $$ = new string (to_string($1));
+    }
+    | PARENL expr PARENR {
+        $$ = $1;
+    }
+    | ADDOP term {
+        if ((*$1)[0] == '-') {
+            string new_temp = NewTempVar();
+            table_stack.top().AddSymbol(
+                make_pair(CurrentTempVar(), string("int"))
+	        );
+            string args = *$2 + ", " + new_temp;
+            PrintInstruct("NEG", args);
+            $$ = new string (new_temp);
+        }
+    }
+    | fcall {
+        $$ = $1;
+    }
+    ;
+
+bexpr: 
+    bfactor { $$ = $1; }
+    | bexpr OR bfactor {
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct("OR", args);
+        $$ = new string(CurrentTempVar());
+    }
+    ;
+
+bfactor: 
+    bneg { $$ = $1; }
+    | bfactor AND bneg {
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        PrintInstruct("AND", args);
+        $$ = new string(CurrentTempVar());
+    }
+    ;
+
+bneg: 
+    bterm { $$ = $1; }
+	| NOT bterm {
+	    string args = *$1 + ", " + NewTempVar();
+	    table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+	    PrintInstruct("NEG", args);
+	    $$ = new string(CurrentTempVar());
+	}
+	;
+
+bterm: 
+    expr RELOP expr {
+        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        string instruction;
+        if (*$2 == "<") {
+            instruction = "LT";
+        } else if (*$2 == ">") {
+            instruction = "GT";
+        } else if (*$2 == "==") {
+            instruction = "EQ";
+        } else if (*$2 == "!=") {
+            instruction = "NEQ";
+        } else if (*$2 == "<=") {
+            instruction = "LTE";
+        } else if (*$2 == ">=") {
+            instruction = "GTE";
+        }
+        PrintInstruct(instruction, args);
+        $$ = new string(CurrentTempVar());
+    }
+    | PARENL bterm PARENR {
+        $$ = $2;
+    }
+    ;
+
+fcall: 
+    ID PARENL PARENR {
+        // Print the CALL instruction
+        PrintInstruct("CALL", *$1);
+        // Store the result in a new temp variable
+        PrintInstruct("STRET", NewTempVar());
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        $$ = new string (CurrentTempVar());
+    }
+    | ID PARENL aplist PARENR {
+        PrintInstruct("CALL", *$1);
+        // Store the result in a new temp variable
+        PrintInstruct("STRET", NewTempVar());
+        table_stack.top().AddSymbol(
+            make_pair(CurrentTempVar(), string("int"))
+	    );
+        $$ = new string (CurrentTempVar());
+        
+    }
+    ;
+
+aplist:
+    expr COMMA aplist {
+        PrintInstruct("PARAM", *$1);
+    }
+	| expr {
+	    PrintInstruct("PARAM", *$1);
+	}
+	| STRING {
+	    PrintInstruct("PARAM", *$1);
+	}
+	;
+
+while:
+    WHILE {
+        PrintLabel(CurrentLabel());
+        while_stack.push(CurrentLabel());
+    } PARENL bexpr PARENR {
+        string args = *$4 + ", " + to_string(0);
+        PrintInstruct("CMP", args);
+        PrintInstruct("BEQ", NewLabel());
+        while_stack.push(CurrentLabel());
+    } stmt {
+        string outLayer = while_stack.top(); while_stack.pop();
+        string topLayer = while_stack.top(); while_stack.pop();
+        PrintInstruct("BA", topLayer);
+        
+        PrintLabel(outLayer);
+    }
+	;
+
+if: 
+    IF {
+        if_stack.push(CurrentLabel());
+    } PARENL bexpr PARENR {
+        string args = *$4 + ", " + to_string(0);
+        PrintInstruct("CMP", args);
+        PrintInstruct("BEQ", NewLabel());
+        if_stack.push(CurrentLabel());
+    } stmt {
+        
+        PrintInstruct("BA", NewLabel());
+        string outLayer = if_stack.top(); if_stack.pop();
+        PrintLabel(outLayer);
+        if_stack.push(CurrentLabel());
+    } elsepart {
+        PrintLabel(if_stack.top()); if_stack.pop();
+    }
+    ;
+
+elsepart: 
+    ELSE stmt {
+        
+    }
+	| /* Epsilon */
+	;
+
+%%
+
+int main(int argc, char* argv[]) {
+    try {
+        auto file_name = argv[1];
+        if (file_name == nullptr) {
+	        throw logic_error("Missing input file argument");
+	    } else {
+	        // Construct a wrapper around the input file
+	        FileHandler input_file(file_name);
+
+	        // Extract the contents of the input file
+	        auto file_contents = input_file.ExtractSourceCode();
+	        
+	        // Construct the tokenizer
+	        Tokenizer tokenizer(file_contents);
+	        
+	        // Create the list of tokens from the file's contents
+	        auto tokens = tokenizer.Tokenize();
+	        
+	        // Copy construct the TokenList
+	        token_list = TokenList(tokens);
+	    }
+    } catch (const logic_error &err) {
+        cerr << err.what() << endl;
+        return 1;
+    } catch (const runtime_error &err) {
+        cerr << err.what() << endl;
+        return 2;
+    }
+    // Create the global label
+    table_stack.emplace("__GLOBAL__");
+    
+    // Reset the counters
+    num_temp_vars = 0;
+
+    // Run the parser
+    yyparse();
+    
+    return 0;
+}
+
+int yylex() {
+
+    // Get the next token from the token_list
+    TokenPair next_token = token_list.NextToken();
+    auto next_token_type = next_token.Type();
+
+    // Return -1 to signify EOF
+    if (next_token_type == "EOF") {
+	    return -1;
+    } else if (next_token_type == "NUMBER") {
+	    // Set yylval to the token's contents (as an int)
+	    yylval.ival = stoi(next_token.Contents());
+	    // return the token type
+	    return NUMBER;
+    } else {
+	
+	    yylval.sval = new string(next_token.Contents());
+	    
+	    // Execute an if/else series to determine what token type
+	    // to return to yyparse
+	    if (next_token_type == "STRING") {
+	        return STRING;
+	    } else if (next_token_type == "FUNCTION") {
+	        return FUNCTION;
+	    } else if (next_token_type == "ID") {
+	        return ID;
+	    } else if (next_token_type == "ADDOP") {
+	        return ADDOP;
+	    } else if (next_token_type == "MULOP") {
+	        return MULOP;
+	    } else if (next_token_type == "RELOP") {
+	        return RELOP;
+	    } else if (next_token_type == "ASSIGNOP") {
+	        return ASSIGNOP;
+	    } else if (next_token_type == "AND") {
+	        return AND;
+	    } else if (next_token_type == "OR") {
+	        return OR;
+	    } else if (next_token_type == "NOT") {
+	        return NOT;
+	    } else if (next_token_type == "CURLL") {
+	        return CURLL;
+	    } else if (next_token_type == "CURLR") {
+	        return CURLR;
+	    } else if (next_token_type == "PARENL") {
+	        return PARENL;	
+	    } else if (next_token_type == "PARENR") {
+	        return PARENR;
+	    } else if (next_token_type == "COMMA") {
+	        return COMMA;
+	    } else if (next_token_type == "SEMICOLON") {
+	        return SEMICOLON;
+	    } else if (next_token_type == "IF") {
+	        return IF;
+	    } else if (next_token_type == "ELSE") {
+	        return ELSE;
+	    } else if (next_token_type == "WHILE") {
+	        return WHILE;
+	    } else if (next_token_type == "VAR") {
+	        return VAR;
+	    } else if (next_token_type == "RETURN") {
+	        return RETURN;
+	    }
+    }
+    return -1;
+}
