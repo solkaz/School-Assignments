@@ -1,5 +1,7 @@
 all: venison compile
 
+remake: all run outputs
+
 # Run bison on the ypp file
 venison:
 	bison \
@@ -21,34 +23,16 @@ inputs:
 		cat ./inputs/$$i*.myl ; \
 	done
 
-icode:
-	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
-		./testing ./inputs/$$i*.myl -S > ./icd/$$i.icd; \
-	done
-
-print-icodes:
-	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
-		echo "case $$i" ; \
-		cat ./icd/$$i.icd ; \
-	done
-
-translate: icode
-	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
-		./testing "./icd/$$i.icd" > ./asm/$$i.asm; \
-	done
-
-assembly:
+run:
 	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
 		./testing ./inputs/$$i*.myl > ./asm/$$i.asm; \
 	done
 
-print-assembly:
+outputs:
 	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
 		echo "case $$i" ; \
 		cat ./asm/$$i.asm ; \
 	done
-
-print-both: print-icodes print-assembly
 
 clean:
 	rm -f ./testing ./src/main.cpp

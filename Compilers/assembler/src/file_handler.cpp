@@ -16,7 +16,7 @@ FileHandler::FileHandler(std::string s) {
 std::string FileHandler::ExtractSourceCode() {
     // Open the ifstream to the source code
     source_code_file_.open(file_location_, std::fstream::in);
-    
+
     // Get the full contents of the source code file and place it in a string
     std::string extracted_source_code (
 	(std::istreambuf_iterator<char>(source_code_file_)),
@@ -25,7 +25,7 @@ std::string FileHandler::ExtractSourceCode() {
 
     // Close access to the input file
     source_code_file_.close();
-    
+
     // Return the source code's contents as a string
     return extracted_source_code;
 

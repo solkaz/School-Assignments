@@ -1,37 +1,36 @@
 %{
 
-#include "file_handler.hpp"
-#include "print.hpp"
+#include "function.hpp"
+#include "lexical_analyzer.hpp"
 #include "symbol_table.hpp"
-#include "tokenizer.hpp"
-#include "token_list.hpp"
 
 #include <iostream>
 #include <stack>
 #include <string>
 
+// i am ashamed of myself
 using namespace std;
 
-int num_temp_vars;
-int num_labels;
-TokenList token_list;
+int num_temps, num_labels;
 
 stack<string> while_stack;
 stack<string> if_stack;
-stack<SymbolTable> table_stack;
+LexicalAnalyzer lexer;
+SymbolTable globals("__GLOBAL__");
+std::vector<Function> function_list;
 
 int yylex();
 int yyerror(const char* msg) {
     cerr << "Error: " << msg << endl;
     return 1;
 }
-    
+
 string NewTempVar() {
-    return "__T" + to_string(num_temp_vars++);
+    return "__T" + to_string(num_temps++);
 }
 
 string CurrentTempVar() {
-    return "__T" + to_string(num_temp_vars - 1);
+    return "__T" + to_string(num_temps - 1);
 }
 
 string NewLabel() {
@@ -42,7 +41,8 @@ string CurrentLabel() {
     return "__L" + to_string(num_labels - 1);
 }
 
-%} 
+%}
+
 %union {
     bool bval;
     int ival;
@@ -69,9 +69,7 @@ string CurrentLabel() {
 
 pgm:
     pgmpart pgm 
-    | pgmpart {
-        table_stack.top().PrintTable();
-    }
+    | pgmpart
     ;
     
 pgmpart:
@@ -85,56 +83,40 @@ vardecl:
 	
 varlist:
     ID COMMA varlist {
-        string id = *$1; string type = "int";
-        table_stack.top().AddSymbol(
-            make_pair(id, type)
+        function_list.back().AddSymbol(
+            make_pair(string(*$1), string("int"))
         );
     }
     | ID {
-        string id = *$1;
-        string type = "int";
-        table_stack.top().AddSymbol(
-            make_pair(id, type)
+        function_list.back().AddSymbol(
+            make_pair(string(*$1), string("int"))
         );
     }
     ;
 
 function:
     FUNCTION ID PARENL PARENR {
-        string id = *$2;
-        table_stack.top().AddSymbol(
-            make_pair(id, string("func"))
+        // Add the function to the global table
+        string func_id = *$2;
+        globals.AddSymbol(
+            make_pair(func_id, string("func"))
         );
-        // Create a new symbol table for the function
-        table_stack.emplace(id);
-        // Print the function out
-        PrintLabel(*$2);
+        // Construct a new function object
+        function_list.emplace_back(func_id);
     } body {
-        PrintInstruct("RET");
-        cout << endl;
-        // Print the symbol table out
-        table_stack.top().PrintTable();
-        cout << endl;
-        table_stack.pop();
-        NewLabel();
+        function_list.back().AddStatement(string("RET"));
     }
     | FUNCTION ID PARENL fplist PARENR {
-        string id = *$2;
-        table_stack.top().AddSymbol(
-            make_pair(id, string("func"))
+        // Add the function to the global table
+        string func_id = *$2;
+        globals.AddSymbol(
+            make_pair(func_id, string("func"))
         );
-        // Create a new symbol table for the function
-        table_stack.emplace(*$2);
-        // Print the function out
-        PrintLabel(*$2);
+        // Construct a new function object
+        function_list.emplace_back(func_id);
+        
     } body {
-        PrintInstruct("RET");
-        cout << endl;
-        // Print the symbol table
-        table_stack.top().PrintTable();
-        cout << endl;
-        table_stack.pop();
-        NewLabel();
+        function_list.back().AddStatement(string("RET"));
     }
     ;
 
@@ -163,8 +145,8 @@ stmt:
 
 assign:
     ID ASSIGNOP expr {
-        string args = *$3 + ", " + *$1;
-        PrintInstruct("MOV", args);
+        string ops = *$3 + ", " + *$1;
+        function_list.back().AddStatement(string("MOV"), ops);
     }
     ;
 
@@ -173,12 +155,12 @@ expr:
         $$ = $1;
     }
     | expr ADDOP factor {
-        string instruction = ((*$2)[0] == '+' ? "ADD" : "SUB");
-        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
-        table_stack.top().AddSymbol(
+        string opcode = ((*$2)[0] == '+' ? "ADD" : "SUB");
+        string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+        function_list.back().AddStatement(opcode, ops);
+        function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-        PrintInstruct(instruction, args);
         $$ = new string (CurrentTempVar());
     }
     ;
@@ -188,12 +170,12 @@ factor:
         $$ = $1;
     }
 	| factor MULOP term {
-	    string instruction = ((*$2)[0] == '*' ? "MUL" : "DIV");
-	    string args = *$1 + ", " + *$3 + ", " + NewTempVar();
-	    table_stack.top().AddSymbol(
+	    string opcode = ((*$2)[0] == '*' ? "MUL" : "DIV");
+	    string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+	    function_list.back().AddStatement(opcode, ops);
+	    function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-        PrintInstruct(instruction, args);
         $$ = new string (CurrentTempVar());
 	}
 	;
@@ -206,17 +188,20 @@ term:
         $$ = new string (to_string($1));
     }
     | PARENL expr PARENR {
-        $$ = $1;
+        $$ = $2;
     }
     | ADDOP term {
         if ((*$1)[0] == '-') {
             string new_temp = NewTempVar();
-            table_stack.top().AddSymbol(
-                make_pair(CurrentTempVar(), string("int"))
+            function_list.back().AddSymbol(
+                make_pair(new_temp, string("int"))
 	        );
-            string args = *$2 + ", " + new_temp;
-            PrintInstruct("NEG", args);
+            string ops = *$2 + ", " + new_temp;
+            
+            function_list.back().AddStatement(string("NEG"), ops);
             $$ = new string (new_temp);
+        } else {
+            $$ = $2;
         }
     }
     | fcall {
@@ -227,11 +212,12 @@ term:
 bexpr: 
     bfactor { $$ = $1; }
     | bexpr OR bfactor {
-        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
-        table_stack.top().AddSymbol(
+        function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-        PrintInstruct("OR", args);
+
+        string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+        function_list.back().AddStatement(string("OR"), ops);
         $$ = new string(CurrentTempVar());
     }
     ;
@@ -239,23 +225,23 @@ bexpr:
 bfactor: 
     bneg { $$ = $1; }
     | bfactor AND bneg {
-        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
-        table_stack.top().AddSymbol(
+        string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+        function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-        PrintInstruct("AND", args);
+        function_list.back().AddStatement("AND", ops);
         $$ = new string(CurrentTempVar());
     }
     ;
 
-bneg: 
+bneg:
     bterm { $$ = $1; }
 	| NOT bterm {
 	    string args = *$1 + ", " + NewTempVar();
-	    table_stack.top().AddSymbol(
+	    function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-	    PrintInstruct("NEG", args);
+	    function_list.back().AddStatement("NEG", args);
 	    $$ = new string(CurrentTempVar());
 	}
 	;
@@ -263,7 +249,7 @@ bneg:
 bterm: 
     expr RELOP expr {
         string args = *$1 + ", " + *$3 + ", " + NewTempVar();
-        table_stack.top().AddSymbol(
+        function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
         string instruction;
@@ -280,7 +266,7 @@ bterm:
         } else if (*$2 == ">=") {
             instruction = "GTE";
         }
-        PrintInstruct(instruction, args);
+        function_list.back().AddStatement(instruction, args);
         $$ = new string(CurrentTempVar());
     }
     | PARENL bterm PARENR {
@@ -291,53 +277,51 @@ bterm:
 fcall: 
     ID PARENL PARENR {
         // Print the CALL instruction
-        PrintInstruct("CALL", *$1);
+        function_list.back().AddStatement("CALL", *$1);
         // Store the result in a new temp variable
-        PrintInstruct("STRET", NewTempVar());
-        table_stack.top().AddSymbol(
+        function_list.back().AddStatement("STRET", NewTempVar());
+        function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-        $$ = new string (CurrentTempVar());
+	    $$ = new string (CurrentTempVar());
     }
     | ID PARENL aplist PARENR {
-        PrintInstruct("CALL", *$1);
+        function_list.back().AddStatement("CALL", *$1);
         // Store the result in a new temp variable
-        PrintInstruct("STRET", NewTempVar());
-        table_stack.top().AddSymbol(
+        function_list.back().AddStatement("STRET", NewTempVar());
+        function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
         $$ = new string (CurrentTempVar());
-        
     }
     ;
 
 aplist:
     expr COMMA aplist {
-        PrintInstruct("PARAM", *$1);
+        function_list.back().AddStatement("PARAM", *$1);
     }
 	| expr {
-	    PrintInstruct("PARAM", *$1);
+	    function_list.back().AddStatement("PARAM", *$1);
 	}
 	| STRING {
-	    PrintInstruct("PARAM", *$1);
+	    function_list.back().AddStatement("PARAM", *$1);
 	}
 	;
 
 while:
     WHILE {
-        PrintLabel(CurrentLabel());
+        function_list.back().AddLabel(CurrentLabel());
         while_stack.push(CurrentLabel());
     } PARENL bexpr PARENR {
         string args = *$4 + ", " + to_string(0);
-        PrintInstruct("CMP", args);
-        PrintInstruct("BEQ", NewLabel());
+        function_list.back().AddStatement("CMP", args);
+        function_list.back().AddStatement("BEQ", NewLabel());
         while_stack.push(CurrentLabel());
     } stmt {
         string outLayer = while_stack.top(); while_stack.pop();
         string topLayer = while_stack.top(); while_stack.pop();
-        PrintInstruct("BA", topLayer);
-        
-        PrintLabel(outLayer);
+        function_list.back().AddStatement("BA", topLayer);
+        function_list.back().AddLabel(outLayer);
     }
 	;
 
@@ -346,65 +330,39 @@ if:
         if_stack.push(CurrentLabel());
     } PARENL bexpr PARENR {
         string args = *$4 + ", " + to_string(0);
-        PrintInstruct("CMP", args);
-        PrintInstruct("BEQ", NewLabel());
+        function_list.back().AddStatement("CMP", args);
+        function_list.back().AddStatement("BEQ", NewLabel());
         if_stack.push(CurrentLabel());
     } stmt {
-        
-        PrintInstruct("BA", NewLabel());
+        function_list.back().AddStatement("BA", NewLabel());
         string outLayer = if_stack.top(); if_stack.pop();
-        PrintLabel(outLayer);
+        function_list.back().AddLabel(outLayer);
         if_stack.push(CurrentLabel());
     } elsepart {
-        PrintLabel(if_stack.top()); if_stack.pop();
+        function_list.back().AddLabel(if_stack.top()); if_stack.pop();
     }
     ;
 
 elsepart: 
-    ELSE stmt {
-        
-    }
+    ELSE stmt
 	| /* Epsilon */
 	;
 
 %%
 
-int main(int argc, char* argv[]) {
-    try {
-        auto file_name = argv[1];
-        if (file_name == nullptr) {
-	        throw logic_error("Missing input file argument");
-	    } else {
-	        // Construct a wrapper around the input file
-	        FileHandler input_file(file_name);
-
-	        // Extract the contents of the input file
-	        auto file_contents = input_file.ExtractSourceCode();
-	        
-	        // Construct the tokenizer
-	        Tokenizer tokenizer(file_contents);
-	        
-	        // Create the list of tokens from the file's contents
-	        auto tokens = tokenizer.Tokenize();
-	        
-	        // Copy construct the TokenList
-	        token_list = TokenList(tokens);
-	    }
-    } catch (const logic_error &err) {
-        cerr << err.what() << endl;
-        return 1;
-    } catch (const runtime_error &err) {
-        cerr << err.what() << endl;
-        return 2;
-    }
-    // Create the global label
-    table_stack.emplace("__GLOBAL__");
+int main(int argc, char * argv[]) {
+    auto file_name = argv[1];
+    lexer = LexicalAnalyzer(file_name);
     
-    // Reset the counters
-    num_temp_vars = 0;
-
-    // Run the parser
+    num_temps = 0; num_labels = 0;
+    
+    // Generate intermediate code using the above grammar
     yyparse();
+    
+    // Translate each function into assembly
+    for (auto &func : function_list) {
+        func.Translate(true);
+    }
     
     return 0;
 }
@@ -412,7 +370,7 @@ int main(int argc, char* argv[]) {
 int yylex() {
 
     // Get the next token from the token_list
-    TokenPair next_token = token_list.NextToken();
+    TokenPair next_token = lexer.NextToken();
     auto next_token_type = next_token.Type();
 
     // Return -1 to signify EOF
@@ -424,7 +382,6 @@ int yylex() {
 	    // return the token type
 	    return NUMBER;
     } else {
-	
 	    yylval.sval = new string(next_token.Contents());
 	    
 	    // Execute an if/else series to determine what token type
