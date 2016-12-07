@@ -145,7 +145,7 @@ stmt:
 
 assign:
     ID ASSIGNOP expr {
-        string ops = *$3 + ", " + *$1;
+        string ops = *$3 + ' ' + *$1;
         function_list.back().AddStatement(string("MOV"), ops);
     }
     ;
@@ -156,7 +156,7 @@ expr:
     }
     | expr ADDOP factor {
         string opcode = ((*$2)[0] == '+' ? "ADD" : "SUB");
-        string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+        string ops = *$1 + ' ' + *$3 + ' ' + NewTempVar();
         function_list.back().AddStatement(opcode, ops);
         function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
@@ -171,7 +171,7 @@ factor:
     }
 	| factor MULOP term {
 	    string opcode = ((*$2)[0] == '*' ? "MUL" : "DIV");
-	    string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+	    string ops = *$1 + ' ' + *$3 + ' ' + NewTempVar();
 	    function_list.back().AddStatement(opcode, ops);
 	    function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
@@ -196,7 +196,7 @@ term:
             function_list.back().AddSymbol(
                 make_pair(new_temp, string("int"))
 	        );
-            string ops = *$2 + ", " + new_temp;
+            string ops = *$2 + ' ' + new_temp;
             
             function_list.back().AddStatement(string("NEG"), ops);
             $$ = new string (new_temp);
@@ -216,7 +216,7 @@ bexpr:
             make_pair(CurrentTempVar(), string("int"))
 	    );
 
-        string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+        string ops = *$1 + ' ' + *$3 + ' ' + NewTempVar();
         function_list.back().AddStatement(string("OR"), ops);
         $$ = new string(CurrentTempVar());
     }
@@ -225,7 +225,7 @@ bexpr:
 bfactor: 
     bneg { $$ = $1; }
     | bfactor AND bneg {
-        string ops = *$1 + ", " + *$3 + ", " + NewTempVar();
+        string ops = *$1 + ' ' + *$3 + ' ' + NewTempVar();
         function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
@@ -237,7 +237,7 @@ bfactor:
 bneg:
     bterm { $$ = $1; }
 	| NOT bterm {
-	    string args = *$1 + ", " + NewTempVar();
+	    string args = *$1 + ' ' + NewTempVar();
 	    function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
@@ -248,7 +248,7 @@ bneg:
 
 bterm: 
     expr RELOP expr {
-        string args = *$1 + ", " + *$3 + ", " + NewTempVar();
+        string args = *$1 + ' ' + *$3 + ' ' + NewTempVar();
         function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
@@ -313,7 +313,7 @@ while:
         function_list.back().AddLabel(CurrentLabel());
         while_stack.push(CurrentLabel());
     } PARENL bexpr PARENR {
-        string args = *$4 + ", " + to_string(0);
+        string args = *$4 + ' ' + to_string(0);
         function_list.back().AddStatement("CMP", args);
         function_list.back().AddStatement("BEQ", NewLabel());
         while_stack.push(CurrentLabel());
@@ -329,7 +329,7 @@ if:
     IF {
         if_stack.push(CurrentLabel());
     } PARENL bexpr PARENR {
-        string args = *$4 + ", " + to_string(0);
+        string args = *$4 + ' ' + to_string(0);
         function_list.back().AddStatement("CMP", args);
         function_list.back().AddStatement("BEQ", NewLabel());
         if_stack.push(CurrentLabel());

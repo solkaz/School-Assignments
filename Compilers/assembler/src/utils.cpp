@@ -12,8 +12,13 @@ std::vector<std::string> Split(std::string s) {
 }
 
 std::string Join(std::vector<std::string> vs) {
-    std::string new_s = "";
+    std::string new_s = ""; bool first = true;
     for (const auto &s : vs) {
+	if (!first) {
+	    new_s += ", ";
+	} else {
+	    first = false;
+	}
 	new_s += s;
     }
     return new_s;
