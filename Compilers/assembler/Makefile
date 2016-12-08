@@ -1,6 +1,6 @@
 all: venison compile
 
-remake: all run outputs
+remake: all translate outputs
 
 # Run bison on the ypp file
 venison:
@@ -20,20 +20,27 @@ compile:
 inputs:
 	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
 		echo "case $$i" ; \
-		cat ./inputs/$$i*.myl ; \
+		cat ./inputs/$$i\_*.myl ; \
 	done
 
-run:
+translate:
 	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
-		./testing ./inputs/$$i*.myl > ./asm/$$i.asm; \
+		rm -f ./asm/$$i.s; \
+		cat preamble.s > ./asm/$$i.s; \
+		./testing ./inputs/$$i\_*.myl >> ./asm/$$i.s; \
 	done
 
 outputs:
 	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
 		echo "case $$i" ; \
-		cat ./asm/$$i.asm ; \
+		cat ./asm/$$i.s ; \
 	done
 
+compile-output:
+	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
+		echo "case $$i" ; \
+		gcc ./asm/$$i.s -o ./bin/$$i.out ; \
+	done
 clean:
 	rm -f ./testing ./src/main.cpp
 

@@ -1,11 +1,11 @@
 #include "symbol_table.hpp"
 
-SymbolTable::SymbolTable() {
-    name_ = "";
+SymbolTable::SymbolTable(std::string s) {
+    name_ = s;
+    position_ = 0;
     symbols_.clear();
 }
 
-SymbolTable::SymbolTable(std::string s) {
-    name_ = s;
-    symbols_.clear();
+int SymbolTable::GetSymbolLocation(std::string s) {
+    return locations_[s];
 }

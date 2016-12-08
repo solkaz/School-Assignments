@@ -7,6 +7,7 @@ void PrintLabel(std::string);
 void PrintInstruct(std::string, std::string = "");
 void PrintTableHeader(std::string);
 void PrintTableFooter(int);
-//void PrintSymbol(Symbol, int);
+
+void PrintAsmHeader(std::string);
 
 #endif // PRINT_HPP_

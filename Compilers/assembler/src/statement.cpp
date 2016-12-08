@@ -1,6 +1,8 @@
 #include "statement.hpp"
 #include "utils.hpp"
 
+#include <iostream>
+
 std::string Statement::Print() {
     if (label_ == "") {
 	return "\t" + opcode_ + "\t" + Join(operands_);

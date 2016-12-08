@@ -2,6 +2,7 @@
 
 #include "function.hpp"
 #include "lexical_analyzer.hpp"
+#include "print.hpp"
 #include "symbol_table.hpp"
 
 #include <iostream>
@@ -25,6 +26,8 @@ int yyerror(const char* msg) {
     return 1;
 }
 
+void MakeAssembly(std::string);
+
 string NewTempVar() {
     return "__T" + to_string(num_temps++);
 }
@@ -39,6 +42,22 @@ string NewLabel() {
 
 string CurrentLabel() {
     return "__L" + to_string(num_labels - 1);
+}
+
+string GetJumpInstruction(string opcode) {
+    if (opcode == "LT") {
+        return "BGE";
+    } else if (opcode == "LTE") {
+        return "BGT";
+    } else if (opcode == "GTE") {
+        return "BLT";
+    } else if (opcode == "GT") {
+        return "BLE";
+    } else if (opcode == "EQ") {
+        return "BEQ";
+    } else if (opcode == "NEQ") {
+        return "BNE";
+    }
 }
 
 %}
@@ -248,7 +267,7 @@ bneg:
 
 bterm: 
     expr RELOP expr {
-        string args = *$1 + ' ' + *$3 + ' ' + NewTempVar();
+        string args = *$1 + ' ' + *$3;
         function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
@@ -266,7 +285,9 @@ bterm:
         } else if (*$2 == ">=") {
             instruction = "GTE";
         }
-        function_list.back().AddStatement(instruction, args);
+        string jump_opcode = GetJumpInstruction(instruction);
+        function_list.back().AddStatement("CMP", args);
+        function_list.back().AddStatement(jump_opcode, NewLabel());
         $$ = new string(CurrentTempVar());
     }
     | PARENL bterm PARENR {
@@ -310,12 +331,9 @@ aplist:
 
 while:
     WHILE {
-        function_list.back().AddLabel(CurrentLabel());
+        function_list.back().AddLabel(NewLabel());
         while_stack.push(CurrentLabel());
     } PARENL bexpr PARENR {
-        string args = *$4 + ' ' + to_string(0);
-        function_list.back().AddStatement("CMP", args);
-        function_list.back().AddStatement("BEQ", NewLabel());
         while_stack.push(CurrentLabel());
     } stmt {
         string outLayer = while_stack.top(); while_stack.pop();
@@ -329,12 +347,10 @@ if:
     IF {
         if_stack.push(CurrentLabel());
     } PARENL bexpr PARENR {
-        string args = *$4 + ' ' + to_string(0);
-        function_list.back().AddStatement("CMP", args);
-        function_list.back().AddStatement("BEQ", NewLabel());
         if_stack.push(CurrentLabel());
     } stmt {
         function_list.back().AddStatement("BA", NewLabel());
+        
         string outLayer = if_stack.top(); if_stack.pop();
         function_list.back().AddLabel(outLayer);
         if_stack.push(CurrentLabel());
@@ -358,13 +374,18 @@ int main(int argc, char * argv[]) {
     
     // Generate intermediate code using the above grammar
     yyparse();
+
+    MakeAssembly(file_name);
     
+    return 0;
+}
+
+void MakeAssembly(std::string file_name) {
     // Translate each function into assembly
     for (auto &func : function_list) {
         func.Translate(true);
     }
     
-    return 0;
 }
 
 int yylex() {

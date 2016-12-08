@@ -4,12 +4,14 @@
 #include <string>
 #include <vector>
 
+using Operands = std::vector<std::string>;
+
 struct Statement {
     std::string opcode_;
-    std::vector<std::string> operands_;
+    Operands operands_;
     std::string label_;
 
-    Statement(std::string opcode, std::vector<std::string> operands,
+    Statement(std::string opcode, Operands operands,
 	      std::string label="") :
 	opcode_(opcode), operands_(operands), label_(label) {}
 
