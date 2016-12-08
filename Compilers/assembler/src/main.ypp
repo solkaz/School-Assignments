@@ -4,6 +4,7 @@
 #include "lexical_analyzer.hpp"
 #include "print.hpp"
 #include "symbol_table.hpp"
+#include "utils.hpp"
 
 #include <iostream>
 #include <stack>
@@ -26,7 +27,7 @@ int yyerror(const char* msg) {
     return 1;
 }
 
-void MakeAssembly(std::string);
+void MakeAssembly();
 
 string NewTempVar() {
     return "__T" + to_string(num_temps++);
@@ -54,9 +55,9 @@ string GetJumpInstruction(string opcode) {
     } else if (opcode == "GT") {
         return "BLE";
     } else if (opcode == "EQ") {
-        return "BEQ";
-    } else if (opcode == "NEQ") {
         return "BNE";
+    } else if (opcode == "NEQ") {
+        return "BEQ";
     }
 }
 
@@ -78,7 +79,7 @@ string GetJumpInstruction(string opcode) {
     
 %type<sval>
     expr factor fcall body term bterm bexpr bfactor
-    bneg
+    bneg fplist
     ;
     
 %left ADDOP
@@ -133,7 +134,7 @@ function:
         );
         // Construct a new function object
         function_list.emplace_back(func_id);
-        
+        function_list.back().SetParams(*$4);
     } body {
         function_list.back().AddStatement(string("RET"));
     }
@@ -144,8 +145,12 @@ body:
     ;
 
 fplist:	
-    ID COMMA fplist
-	| ID
+    ID COMMA fplist {
+        $$ = new string(*$1 + ' ' + *$3);
+    }
+	| ID {
+	    $$ = $1;
+	}
 	;
 
 bodylist:
@@ -256,11 +261,11 @@ bfactor:
 bneg:
     bterm { $$ = $1; }
 	| NOT bterm {
-	    string args = *$1 + ' ' + NewTempVar();
+	    string args = *$2 + ' ' + NewTempVar();
 	    function_list.back().AddSymbol(
             make_pair(CurrentTempVar(), string("int"))
 	    );
-	    function_list.back().AddStatement("NEG", args);
+	    function_list.back().AddStatement("NOT", args);
 	    $$ = new string(CurrentTempVar());
 	}
 	;
@@ -371,16 +376,16 @@ int main(int argc, char * argv[]) {
     lexer = LexicalAnalyzer(file_name);
     
     num_temps = 0; num_labels = 0;
-    
+
     // Generate intermediate code using the above grammar
     yyparse();
 
-    MakeAssembly(file_name);
+    MakeAssembly();
     
     return 0;
 }
 
-void MakeAssembly(std::string file_name) {
+void MakeAssembly() {
     // Translate each function into assembly
     for (auto &func : function_list) {
         func.Translate(true);
@@ -404,7 +409,6 @@ int yylex() {
 	    return NUMBER;
     } else {
 	    yylval.sval = new string(next_token.Contents());
-	    
 	    // Execute an if/else series to determine what token type
 	    // to return to yyparse
 	    if (next_token_type == "STRING") {

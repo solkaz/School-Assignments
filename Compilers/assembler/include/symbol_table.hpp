@@ -24,7 +24,7 @@ public:
     }
 
     int GetSymbolLocation(std::string);
-
+    std::string GetTableSize() { return '$' + std::to_string(position_ + 4); }
     std::string name_;
 
     // void PrintTable() const {

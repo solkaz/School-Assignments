@@ -7,5 +7,5 @@ SymbolTable::SymbolTable(std::string s) {
 }
 
 int SymbolTable::GetSymbolLocation(std::string s) {
-    return locations_[s];
+    return locations_[s] + 4;
 }

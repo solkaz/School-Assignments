@@ -14,6 +14,7 @@ public:
     LexicalAnalyzer(std::string);
 
     TokenPair NextToken() { return tokens_.NextToken(); }
+    void PrintAll();
 };
 
 #endif // LEXICAL_ANALYZER_HPP_

@@ -2,6 +2,8 @@
 #include "lexical_analyzer.hpp"
 #include "tokenizer.hpp"
 
+#include <iostream>
+
 LexicalAnalyzer::LexicalAnalyzer(std::string s) {
     // Create a file handler object
     FileHandler source_file(s);
@@ -13,3 +15,6 @@ LexicalAnalyzer::LexicalAnalyzer(std::string s) {
     tokens_ = tokenizer.Tokenize();
 }
 
+void LexicalAnalyzer::PrintAll() {
+    tokens_.PrintAll();
+}

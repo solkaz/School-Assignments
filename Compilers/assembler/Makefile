@@ -23,6 +23,15 @@ inputs:
 		cat ./inputs/$$i\_*.myl ; \
 	done
 
+final:
+	rm -f ./asm/modulo.s ./asm/recGCD.s; \
+	cat preamble.s > ./asm/recGCD.s; \
+	./testing ./inputs/recGCD.myl >> ./asm/recGCD.s; \
+	cat preamble.s > ./asm/modulo.s; \
+	./testing ./inputs/modulo.myl >> ./asm/modulo.s; \
+	gcc ./asm/recGCD.s -o ./bin/recGCD.out; \
+	gcc ./asm/modulo.s -o ./bin/modulo.out; \
+
 translate:
 	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
 		rm -f ./asm/$$i.s; \
@@ -41,6 +50,13 @@ compile-output:
 		echo "case $$i" ; \
 		gcc ./asm/$$i.s -o ./bin/$$i.out ; \
 	done
+
+run-bins:
+	for i in 1 2 3 4 5 6 7 8 9 10 ; do \
+		echo "case $$i" ; \
+		./bin/$$i.out ; \
+	done
+
 clean:
 	rm -f ./testing ./src/main.cpp
 

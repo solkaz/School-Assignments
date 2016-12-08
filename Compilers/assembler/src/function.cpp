@@ -13,7 +13,14 @@ void Function::Translate(bool testing) {
 
     PrintLabel(symbols_.name_);
     PrintInstruction("pushq", "%rbp");
-    PrintInstruction("movq", Join(Operands{"%rsp", "%rbp"}));
+    PrintInstruction("movq", Join("%rsp", "%rbp"));
+    PrintInstruction("subq", Join(symbols_.GetTableSize(), "%rsp"));
+    
+    if (num_params_ != 0) {
+	for (int i = 0; i < num_params_; ++i) {
+	    PrintMOVInstruction(GetParamRegister(num_params_ - i - 1), TranslateSymbol(params_[i]));
+	}
+    }
 
     auto stmts_itr = statements_.begin();
     auto stmts_end = statements_.end();
@@ -56,11 +63,17 @@ void Function::TranslateStatement(Statement s) {
 	PrintInstruction("ret");
     } else if (IsBinaryOp(opcode)) {
 	PrintMOVInstruction(TranslateSymbol(s.operands_[0]), "%eax");
-    	PrintInstruction(TranslateBinaryOp(opcode),
+	if (opcode == "DIV") {
+	    PrintInstruction("cltd");
+	}
+	PrintInstruction(TranslateBinaryOp(opcode),
 			 Join(TranslateSymbol(s.operands_[1]), "%eax"));
-    	PrintMOVInstruction("%eax", TranslateSymbol(s.operands_[2]));
+	PrintMOVInstruction("%eax", TranslateSymbol(s.operands_[2]));
+
     } else if (opcode == "NOT") {
-//	PrintInstruction("not", "");
+	PrintMOVInstruction(TranslateSymbol(s.operands_[0]),
+			    TranslateSymbol(s.operands_[1]));
+	PrintInstruction("notl", TranslateSymbol(s.operands_[1]));
     } else if (opcode == "CALL") {
 	PrintInstruction("call", s.operands_[0]);
 	ResetParamCounter();
@@ -69,8 +82,14 @@ void Function::TranslateStatement(Statement s) {
     } else if (opcode == "PARAM") {
 	PrintMOVInstruction(TranslateSymbol(s.operands_[0]), GetParamRegister());
     } else if (opcode == "CMP") {
-	PrintInstruction("cmp", Join(TranslateSymbol(s.operands_[1]),
-				     TranslateSymbol(s.operands_[0])));
+	auto arg2 = TranslateSymbol(s.operands_[1]);
+	auto arg1 = TranslateSymbol(s.operands_[0]);
+	if (DoesReferenceRBP(arg2) && DoesReferenceRBP(arg1)) {
+	    PrintMOVInstruction(arg2, "%eax");
+	    PrintInstruction("cmp", Join("%eax", arg1));
+	} else {
+	    PrintInstruction("cmp", Join(arg2, arg1));
+	}
     } else if (opcode == "NEG") {
 	PrintMOVInstruction(TranslateSymbol(s.operands_[0]),
 			    TranslateSymbol(s.operands_[1]));
@@ -102,4 +121,31 @@ std::string Function::GetParamRegister() {
     }
     ++param_counter_;
     return reg;
+}
+
+std::string Function::GetParamRegister(int i) {
+    switch (i) {
+	case 0: {
+	    return "%eax";
+	}
+	case 1: {
+	    return "%edi";
+	}
+	case 2: {
+	    return "%esp";
+	}
+	case 3: {
+	    return "%ebp";
+	}
+    }
+}
+
+void Function::SetParams(std::string s) {
+    params_ = Split(s);
+    num_params_ = params_.size();
+    for (auto &i : params_) {
+	symbols_.AddSymbol(
+	    std::make_pair(i, std::string("int"))
+	    );
+    }
 }

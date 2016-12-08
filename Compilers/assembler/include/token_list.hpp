@@ -16,6 +16,7 @@ public:
     TokenList();
     TokenList(TokenListType t);
     TokenPair NextToken();
+    void PrintAll();
 };
 
 #endif // TOKEN_LIST_HPP_

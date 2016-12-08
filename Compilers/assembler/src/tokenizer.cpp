@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <iostream>
 
 Tokenizer::Tokenizer(std::string &input) {
     // Hydrate the source code representation
@@ -47,9 +48,7 @@ std::vector<TokenPair> Tokenizer::Tokenize() {
 
 	    // Get the TokenPairType for the punctuation char
 	    new_token_pair = HandlePunctuation(current_char);
-	    
-	    
-	    
+
 	    // Comment isn't a token type that's printed; skip adding it
 	    if (new_token_pair.first == "COMMENT") {
 		continue;
@@ -187,6 +186,7 @@ TokenPairType Tokenizer::HandlePunctuation(char c) {
 		// Erroneous token;
 		token_type = "ERROR";
 	    }
+	    break;
 	}
 
 	case '+':

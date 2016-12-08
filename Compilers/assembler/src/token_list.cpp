@@ -1,5 +1,7 @@
 #include "token_list.hpp"
 
+#include <iostream>
+
 // Initialize an empty vector
 TokenList::TokenList() {
     tokens_.clear();
@@ -28,5 +30,11 @@ TokenPair TokenList::NextToken() {
 	std::string type = "EOF";
 	std::string contents = "0";
 	return TokenPair(type, contents);
+    }
+}
+
+void TokenList::PrintAll() {
+    for (auto &i : tokens_) {
+	std::cout << i.FormatToPrint() << std::endl;
     }
 }
